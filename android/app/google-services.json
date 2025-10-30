@@ -7,6 +7,50 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:494650703271:android:1c7a47510269757f514a82",
+        "android_client_info": {
+          "package_name": "com.example.chicken_kitchen_mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "494650703271-em0cne0riu2lvb40b4o9gtdcdn53btiu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.chicken_kitchen_mobile",
+            "certificate_hash": "929de5815b2685579b0fdd156a765523b8b5d27c"
+          }
+        },
+        {
+          "client_id": "494650703271-q1l5i3hfv61fb8n8sk4up01khqe0actc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAKFJd25KQFgn1dGlZ8zPrMLu9eF0QF8Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "494650703271-q1l5i3hfv61fb8n8sk4up01khqe0actc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "494650703271-63ohdea5kk6hn0a8d6agg8ciovl963c2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mobileUi"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:494650703271:android:25026023942198ae514a82",
         "android_client_info": {
           "package_name": "com.example.mobile_ui"
@@ -58,47 +102,19 @@
           }
         },
         {
-          "client_id": "494650703271-q1l5i3hfv61fb8n8sk4up01khqe0actc.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDAKFJd25KQFgn1dGlZ8zPrMLu9eF0QF8Q"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "494650703271-q1l5i3hfv61fb8n8sk4up01khqe0actc.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "494650703271-63ohdea5kk6hn0a8d6agg8ciovl963c2.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.mobileUi"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:494650703271:android:7f37df8312f1e75f514a82",
-        "android_client_info": {
-          "package_name": "com.pawpasta11.MyPushNotificationApp"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "494650703271-r1h1jkj7nis36pdt3nr60ml05fhnssim.apps.googleusercontent.com",
+          "client_id": "494650703271-a2qluls59k7udajv8mqbtfe14940unu6.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.pawpasta11.MyPushNotificationApp",
-            "certificate_hash": "6b0a5ce7d7d65cb364c71444a6ec6e175aec1459"
+            "package_name": "com.example.mobiletest",
+            "certificate_hash": "929de5815b2685579b0fdd156a765523b8b5d27c"
+          }
+        },
+        {
+          "client_id": "494650703271-ddnavoumrshgfkjgthhcvlqc8nclndev.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mobiletest",
+            "certificate_hash": "91c1310f1c19bf619a29e4c5edcc95c64e5b9930"
           }
         },
         {

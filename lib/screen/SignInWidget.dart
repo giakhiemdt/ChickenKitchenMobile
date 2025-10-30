@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobiletest/screen/HomePage.dart';
 import 'package:mobiletest/screen/StorePickerPage.dart';
 import 'package:mobiletest/services/auth_service.dart';
 
@@ -20,21 +19,25 @@ class _SignInWidgetState extends State<SignInWidget> {
       _loading = true;
       _error = null;
     });
+
     try {
-      final idToken = await _auth.signInWithGoogle();
-      if (idToken == null) {
+      // Thực hiện Google Sign-In + FCM + Backend login
+      final tokens = await _auth.signInAndLoginBackend();
+      if (tokens == null) {
         setState(() {
           _loading = false;
           _error = 'Đăng nhập đã bị hủy';
         });
         return;
       }
-      await _auth.loginToBackend(idToken);
+
       if (!mounted) return;
       setState(() => _loading = false);
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đăng nhập thành công')));
+
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const StorePickerPage()),
@@ -60,7 +63,7 @@ class _SignInWidgetState extends State<SignInWidget> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top back bar (long rounded pill with back icon)
+            // Top back bar
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: FractionallySizedBox(
@@ -86,7 +89,7 @@ class _SignInWidgetState extends State<SignInWidget> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Chikchen\nKitchen',
+              'Chicken\nKitchen',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
@@ -95,11 +98,9 @@ class _SignInWidgetState extends State<SignInWidget> {
               ),
             ),
             const SizedBox(height: 16),
-            // White content sheet
             Expanded(
               child: Column(
                 children: [
-                  // Lime accent bar above the white sheet (80% width)
                   const FractionallySizedBox(
                     widthFactor: 0.8,
                     child: SizedBox(
@@ -190,7 +191,6 @@ class _SignInWidgetState extends State<SignInWidget> {
           ],
         ),
       ),
-      // No bottom navigation on sign-in screen
     );
   }
 }
