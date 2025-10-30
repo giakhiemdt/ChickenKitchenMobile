@@ -5,14 +5,23 @@ class Category {
   final String name;
   final String description;
 
-  const Category({required this.id, required this.name, required this.description});
+  const Category({
+    required this.id,
+    required this.name,
+    required this.description,
+  });
 }
 
 class CategoriesStrip extends StatelessWidget {
   final ValueChanged<Category>? onTap;
   final String? selectedName;
   final Set<String>? selectedNames; // allow multi-select
-  const CategoriesStrip({super.key, this.onTap, this.selectedName, this.selectedNames});
+  const CategoriesStrip({
+    super.key,
+    this.onTap,
+    this.selectedName,
+    this.selectedNames,
+  });
 
   static const fixed = <Category>[
     Category(id: 1, name: 'Carbohydrates', description: 'Base carb selection'),
@@ -27,11 +36,15 @@ class CategoriesStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     const primary = Color(0xFF86C144);
     final width = MediaQuery.of(context).size.width;
-    final itemsPerView = width >= 900 ? 6 : width >= 600 ? 5 : 4;
+    final itemsPerView = width >= 900
+        ? 6
+        : width >= 600
+        ? 5
+        : 4;
     const sep = 8.0;
     final itemWidth = (width - 32 - (itemsPerView - 1) * sep) / itemsPerView;
 
-    String _imageFor(String name) {
+    String imageFor(String name) {
       switch (name) {
         case 'Carbohydrates':
           return 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400';
@@ -59,7 +72,9 @@ class CategoriesStrip extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: sep),
         itemBuilder: (context, i) {
           final c = fixed[i];
-          final selected = (selectedNames?.contains(c.name) ?? false) || selectedName == c.name;
+          final selected =
+              (selectedNames?.contains(c.name) ?? false) ||
+              selectedName == c.name;
           return SizedBox(
             width: itemWidth,
             child: Column(
@@ -82,7 +97,9 @@ class CategoriesStrip extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: selected ? primary : primary.withOpacity(.5),
+                                color: selected
+                                    ? primary
+                                    : primary.withOpacity(.5),
                                 width: selected ? 3.0 : 1.0,
                               ),
                               color: Colors.transparent,
@@ -97,7 +114,7 @@ class CategoriesStrip extends StatelessWidget {
                                 fit: StackFit.expand,
                                 children: [
                                   Image.network(
-                                    _imageFor(c.name),
+                                    imageFor(c.name),
                                     fit: BoxFit.cover,
                                   ),
                                   DecoratedBox(

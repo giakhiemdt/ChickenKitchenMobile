@@ -584,8 +584,9 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                                         ),
                                       );
                                     } finally {
-                                      if (mounted)
+                                      if (mounted) {
                                         setState(() => _deleting = false);
+                                      }
                                     }
                                   },
                             style: ElevatedButton.styleFrom(
@@ -601,7 +602,9 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                         : ElevatedButton(
                             onPressed: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const ConfirmOrderPage()),
+                                MaterialPageRoute(
+                                  builder: (_) => const ConfirmOrderPage(),
+                                ),
                               );
                             },
                             style: ElevatedButton.styleFrom(

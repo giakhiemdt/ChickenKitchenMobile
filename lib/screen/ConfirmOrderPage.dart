@@ -27,7 +27,8 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   bool _confirming = false;
   StreamSubscription<String?>? _linkSub;
   bool _handledInitialLink = false;
-  Map<String, dynamic>? _currentOrder; // cache current order to avoid extra fetches
+  Map<String, dynamic>?
+  _currentOrder; // cache current order to avoid extra fetches
 
   @override
   void initState() {
@@ -90,7 +91,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
 
   Future<void> _sendVnpayCallback(Map<String, String> params) async {
     try {
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/vnpay-callback');
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/vnpay-callback',
+      );
       final headers = await AuthService().authHeaders();
       if (headers.isEmpty || !headers.containsKey('Authorization')) {
         if (!mounted) return;
@@ -102,7 +105,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       final body = jsonEncode(params);
       try {
         debugPrint('VNPAY CALLBACK -> POST $uri');
-        debugPrint('Headers(safe): ' + jsonEncode(_maskHeaders(headers)));
+        debugPrint('Headers(safe): ${jsonEncode(_maskHeaders(headers))}');
         debugPrint('Body: $body');
       } catch (_) {}
       final resp = await http.post(uri, headers: headers, body: body);
@@ -113,7 +116,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       } catch (_) {}
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('VNPAY callback failed: HTTP ${resp.statusCode}')),
+          SnackBar(
+            content: Text('VNPAY callback failed: HTTP ${resp.statusCode}'),
+          ),
         );
         return;
       }
@@ -121,9 +126,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       final statusCode = json['statusCode'] as int? ?? resp.statusCode;
       final message = json['message'] as String? ?? 'Callback processed';
       if (statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment successful!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Payment successful!')));
         // Refresh current order and navigate to progress screen
         setState(() {
           _future = _fetchAll();
@@ -142,15 +147,15 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
           });
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment failed: $message')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Payment failed: $message')));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('VNPAY callback error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('VNPAY callback error: $e')));
     }
   }
 
@@ -179,9 +184,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
     _currentOrder = order;
     // pick first active payment as default
     final firstActive = payments.cast<Map<String, dynamic>?>().firstWhere(
-          (e) => (e?['isActive'] ?? false) == true,
-          orElse: () => null,
-        );
+      (e) => (e?['isActive'] ?? false) == true,
+      orElse: () => null,
+    );
     _selectedPaymentId = firstActive?['id'] as int?;
     return _ConfirmData(order: order, payments: payments, store: store);
   }
@@ -190,30 +195,48 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
     final storeId = await StoreService.getSelectedStoreId() ?? 1;
     final headers = await AuthService().authHeaders();
     final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/current?storeId=$storeId');
-    final resp = await http.get(uri, headers: headers.isEmpty ? {'Accept': 'application/json'} : headers);
+      'https://chickenkitchen.milize-lena.space/api/orders/current?storeId=$storeId',
+    );
+    final resp = await http.get(
+      uri,
+      headers: headers.isEmpty ? {'Accept': 'application/json'} : headers,
+    );
     if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
     final map = jsonDecode(resp.body) as Map<String, dynamic>;
     return map['data'] as Map<String, dynamic>?; // may be null
   }
 
   Future<List<Map<String, dynamic>>> _fetchPaymentMethods() async {
-    final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/transaction/payment-method');
-    final resp = await http.get(uri, headers: const {'Accept': 'application/json'});
+    final uri = Uri.parse(
+      'https://chickenkitchen.milize-lena.space/api/transaction/payment-method',
+    );
+    final resp = await http.get(
+      uri,
+      headers: const {'Accept': 'application/json'},
+    );
     if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
     final map = jsonDecode(resp.body) as Map<String, dynamic>;
-    final list = (map['data'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+    final list =
+        (map['data'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+        const <Map<String, dynamic>>[];
     return list;
   }
 
   Future<Map<String, dynamic>?> _fetchStoreInfo() async {
     try {
       final storeId = await StoreService.getSelectedStoreId() ?? 1;
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/store');
-      final resp = await http.get(uri, headers: const {'Accept': 'application/json'});
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/store',
+      );
+      final resp = await http.get(
+        uri,
+        headers: const {'Accept': 'application/json'},
+      );
       if (resp.statusCode != 200) return {'id': storeId};
       final map = jsonDecode(resp.body) as Map<String, dynamic>;
-      final list = (map['data'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+      final list =
+          (map['data'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+          const <Map<String, dynamic>>[];
       return list.firstWhere(
         (e) => (e['id'] ?? -1) == storeId,
         orElse: () => {'id': storeId},
@@ -223,11 +246,16 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
     }
   }
 
-  Future<void> _openPaymentMethodPicker(List<Map<String, dynamic>> payments) async {
-    final list = payments.where((e) => (e['isActive'] ?? false) == true).toList(growable: false);
+  Future<void> _openPaymentMethodPicker(
+    List<Map<String, dynamic>> payments,
+  ) async {
+    final list = payments
+        .where((e) => (e['isActive'] ?? false) == true)
+        .toList(growable: false);
     if (list.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('No active payment methods')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No active payment methods')),
+      );
       return;
     }
     await showModalBottomSheet<void>(
@@ -253,8 +281,10 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const Text('Choose payment method',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                const Text(
+                  'Choose payment method',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 8),
                 Flexible(
                   child: ListView.separated(
@@ -274,7 +304,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: selected ? const Color(0xFF86C144) : Colors.black12,
+                              color: selected
+                                  ? const Color(0xFF86C144)
+                                  : Colors.black12,
                             ),
                           ),
                           padding: const EdgeInsets.all(12),
@@ -284,16 +316,28 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(pm['name'] as String? ?? '-',
-                                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                                    Text(
+                                      pm['name'] as String? ?? '-',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text(pm['description'] as String? ?? '-',
-                                        style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                    Text(
+                                      pm['description'] as String? ?? '-',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
                               if (selected)
-                                const Icon(Icons.check_circle, color: Color(0xFF86C144))
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: Color(0xFF86C144),
+                                )
                               else
                                 const Icon(Icons.chevron_right),
                             ],
@@ -313,11 +357,18 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
 
   Future<List<Map<String, dynamic>>> _fetchPromotions() async {
     if (_promotionsCache != null) return _promotionsCache!;
-    final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/promotion');
-    final resp = await http.get(uri, headers: const {'Accept': 'application/json'});
+    final uri = Uri.parse(
+      'https://chickenkitchen.milize-lena.space/api/promotion',
+    );
+    final resp = await http.get(
+      uri,
+      headers: const {'Accept': 'application/json'},
+    );
     if (resp.statusCode != 200) throw Exception('HTTP ${resp.statusCode}');
     final map = jsonDecode(resp.body) as Map<String, dynamic>;
-    final list = (map['data'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+    final list =
+        (map['data'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+        const <Map<String, dynamic>>[];
     _promotionsCache = list;
     return list;
   }
@@ -337,7 +388,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
 
   Future<void> _openPromotionPicker() async {
     try {
-      final list = (await _fetchPromotions()).where(_promoValid).toList(growable: false);
+      final list = (await _fetchPromotions())
+          .where(_promoValid)
+          .toList(growable: false);
       if (!mounted) return;
       // Use cached order to avoid extra network calls when opening the sheet
       final subtotal = _orderTotal(_currentOrder);
@@ -365,8 +418,10 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const Text('Choose a promotion',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Choose a promotion',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
                   Flexible(
                     child: ListView.separated(
@@ -393,40 +448,65 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                  color: selected ? primary : Colors.black12),
+                                color: selected ? primary : Colors.black12,
+                              ),
                             ),
                             padding: const EdgeInsets.all(12),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(p['name'] as String? ?? '-',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700)),
+                                      Text(
+                                        p['name'] as String? ?? '-',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
-                                      Text(p['description'] as String? ?? '-',
-                                          style: const TextStyle(
-                                              fontSize: 12, color: Colors.black54)),
+                                      Text(
+                                        p['description'] as String? ?? '-',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
-                                      Text('Code: ${p['code'] ?? ''}',
-                                          style: const TextStyle(fontSize: 12)),
+                                      Text(
+                                        'Code: ${p['code'] ?? ''}',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
                                       const SizedBox(height: 2),
-                                      Builder(builder: (_) {
-                                        final type = (p['discountType'] as String?)?.toUpperCase() ?? '';
-                                        final value = (p['discountValue'] ?? 0) as int;
-                                        String detail;
-                                        if (type == 'PERCENT') {
-                                          final est = ((subtotal * value) / 100).floor();
-                                          detail = 'Giảm $value% (~${_formatVnd(est)})';
-                                        } else {
-                                          detail = 'Giảm trực tiếp ${_formatVnd(value)}';
-                                        }
-                                        return Text(detail,
+                                      Builder(
+                                        builder: (_) {
+                                          final type =
+                                              (p['discountType'] as String?)
+                                                  ?.toUpperCase() ??
+                                              '';
+                                          final value =
+                                              (p['discountValue'] ?? 0) as int;
+                                          String detail;
+                                          if (type == 'PERCENT') {
+                                            final est =
+                                                ((subtotal * value) / 100)
+                                                    .floor();
+                                            detail =
+                                                'Giảm $value% (~${_formatVnd(est)})';
+                                          } else {
+                                            detail =
+                                                'Giảm trực tiếp ${_formatVnd(value)}';
+                                          }
+                                          return Text(
+                                            detail,
                                             style: const TextStyle(
-                                                fontSize: 12, color: Colors.redAccent));
-                                      }),
+                                              fontSize: 12,
+                                              color: Colors.redAccent,
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -449,8 +529,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to load promotions: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load promotions: $e')));
     }
   }
 
@@ -467,7 +548,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
 
   int _orderTotal(Map<String, dynamic>? order) {
     if (order == null) return 0;
-    final dishes = (order['dishes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+    final dishes =
+        (order['dishes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+        const <Map<String, dynamic>>[];
     int sum = 0;
     for (final d in dishes) {
       sum += (d['price'] ?? 0) as int;
@@ -491,7 +574,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
 
   int _orderCal(Map<String, dynamic>? order) {
     if (order == null) return 0;
-    final dishes = (order['dishes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+    final dishes =
+        (order['dishes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+        const <Map<String, dynamic>>[];
     int sum = 0;
     for (final d in dishes) {
       sum += (d['cal'] ?? 0) as int;
@@ -531,7 +616,10 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
           final activePayments = payments
               .where((e) => (e['isActive'] ?? false) == true)
               .toList(growable: false);
-          final dishes = (order?['dishes'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+          final dishes =
+              (order?['dishes'] as List<dynamic>?)
+                  ?.cast<Map<String, dynamic>>() ??
+              const <Map<String, dynamic>>[];
           final subtotal = _orderTotal(order);
           final discount = _discountAmount(subtotal);
           final total = (subtotal - discount).clamp(0, 1 << 31);
@@ -557,9 +645,16 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(user?.displayName ?? 'Unknown User',
-                                  style: const TextStyle(fontWeight: FontWeight.w700)),
-                              Text(user?.email ?? '-', style: const TextStyle(color: Colors.black54)),
+                              Text(
+                                user?.displayName ?? 'Unknown User',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                user?.email ?? '-',
+                                style: const TextStyle(color: Colors.black54),
+                              ),
                             ],
                           ),
                         ),
@@ -578,7 +673,10 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.store_mall_directory_outlined, color: Colors.black54),
+                        const Icon(
+                          Icons.store_mall_directory_outlined,
+                          color: Colors.black54,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
@@ -586,11 +684,14 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                             children: [
                               Text(
                                 (store?['name'] as String?) ?? 'Selected Store',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                (store?['address'] as String?) ?? 'Store ID: ' + ((store?['id'] ?? '-') as Object).toString(),
+                                (store?['address'] as String?) ??
+                                    'Store ID: ${(store?['id'] ?? '-') as Object}',
                                 style: const TextStyle(color: Colors.black54),
                               ),
                             ],
@@ -606,10 +707,16 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                       final dishId = (d['dishId'] ?? 0) as int;
                       final expanded = _expanded[dishId] ?? false;
                       // Flatten items across steps
-                      final steps = (d['steps'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+                      final steps =
+                          (d['steps'] as List<dynamic>?)
+                              ?.cast<Map<String, dynamic>>() ??
+                          const <Map<String, dynamic>>[];
                       final items = <Map<String, dynamic>>[];
                       for (final s in steps) {
-                        final its = (s['items'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+                        final its =
+                            (s['items'] as List<dynamic>?)
+                                ?.cast<Map<String, dynamic>>() ??
+                            const <Map<String, dynamic>>[];
                         items.addAll(its);
                       }
                       return Padding(
@@ -623,38 +730,66 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                           child: Column(
                             children: [
                               InkWell(
-                                onTap: () => setState(() => _expanded[dishId] = !expanded),
+                                onTap: () => setState(
+                                  () => _expanded[dishId] = !expanded,
+                                ),
                                 child: Padding(
                                   padding: const EdgeInsets.all(12.0),
                                   child: Row(
                                     children: [
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
                                                 Expanded(
-                                                  child: Text('Dish #${d['dishId']}',
-                                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                                                  child: Text(
+                                                    'Dish #${d['dishId']}',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
                                                 ),
                                                 Text(
-                                                  _formatVnd((d['price'] ?? 0) as int),
-                                                  style: const TextStyle(color: primary, fontWeight: FontWeight.w800),
+                                                  _formatVnd(
+                                                    (d['price'] ?? 0) as int,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    color: primary,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(height: 6),
-                                            if ((d['note'] as String?)?.isNotEmpty == true)
-                                              Text(d['note'] as String,
-                                                  style: const TextStyle(color: Colors.black54)),
+                                            if ((d['note'] as String?)
+                                                    ?.isNotEmpty ==
+                                                true)
+                                              Text(
+                                                d['note'] as String,
+                                                style: const TextStyle(
+                                                  color: Colors.black54,
+                                                ),
+                                              ),
                                             const SizedBox(height: 6),
                                             Row(
                                               children: [
-                                                const Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                                                const Icon(
+                                                  Icons.local_fire_department,
+                                                  size: 16,
+                                                  color: Colors.orange,
+                                                ),
                                                 const SizedBox(width: 4),
-                                                Text('${d['cal'] ?? 0} cal',
-                                                    style: const TextStyle(color: Colors.black54)),
+                                                Text(
+                                                  '${d['cal'] ?? 0} cal',
+                                                  style: const TextStyle(
+                                                    color: Colors.black54,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ],
@@ -662,9 +797,13 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                                       ),
                                       const SizedBox(width: 8),
                                       AnimatedRotation(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration: const Duration(
+                                          milliseconds: 200,
+                                        ),
                                         turns: expanded ? 0.5 : 0,
-                                        child: const Icon(Icons.keyboard_arrow_down),
+                                        child: const Icon(
+                                          Icons.keyboard_arrow_down,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -677,28 +816,42 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                                     : CrossFadeState.showFirst,
                                 firstChild: const SizedBox.shrink(),
                                 secondChild: Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    0,
+                                    12,
+                                    12,
+                                  ),
                                   child: Column(
                                     children: [
                                       for (final it in items)
                                         Padding(
-                                          padding: const EdgeInsets.only(bottom: 6),
+                                          padding: const EdgeInsets.only(
+                                            bottom: 6,
+                                          ),
                                           child: Row(
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  it['menuItemName'] as String? ?? 'Item',
+                                                  it['menuItemName']
+                                                          as String? ??
+                                                      'Item',
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
                                               Text('x${it['quantity'] ?? 1}'),
                                               const SizedBox(width: 12),
                                               Text(
-                                                _formatVnd((it['price'] ?? 0) as int),
+                                                _formatVnd(
+                                                  (it['price'] ?? 0) as int,
+                                                ),
                                                 style: const TextStyle(
-                                                    color: primary, fontWeight: FontWeight.w700),
+                                                  color: primary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -733,22 +886,44 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                                 Text(
                                   _selectedPromotion == null
                                       ? 'Add promotion'
-                                      : (_selectedPromotion!['name'] as String? ?? 'Promotion'),
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                      : (_selectedPromotion!['name']
+                                                as String? ??
+                                            'Promotion'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                                 if (_selectedPromotion != null) ...[
-                                  Text('Code: ${_selectedPromotion!['code']}',
-                                      style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                                  Builder(builder: (_) {
-                                    final type = (_selectedPromotion!['discountType'] as String?) ?? '';
-                                    final value = (_selectedPromotion!['discountValue'] ?? 0) as int;
-                                    final est = type.toUpperCase() == 'PERCENT'
-                                        ? '- ' + _formatVnd(((subtotal * value) / 100).floor()) +
-                                            ' (${value}%)'
-                                        : '- ' + _formatVnd(value);
-                                    return Text('Giảm: $est',
-                                        style: const TextStyle(fontSize: 12, color: Colors.redAccent));
-                                  }),
+                                  Text(
+                                    'Code: ${_selectedPromotion!['code']}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  Builder(
+                                    builder: (_) {
+                                      final type =
+                                          (_selectedPromotion!['discountType']
+                                              as String?) ??
+                                          '';
+                                      final value =
+                                          (_selectedPromotion!['discountValue'] ??
+                                                  0)
+                                              as int;
+                                      final est =
+                                          type.toUpperCase() == 'PERCENT'
+                                          ? '- ${_formatVnd(((subtotal * value) / 100).floor())} (${value}%)'
+                                          : '- ${_formatVnd(value)}';
+                                      return Text(
+                                        'Giảm: $est',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.redAccent,
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ],
                               ],
                             ),
@@ -771,14 +946,22 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          const Icon(Icons.account_balance_wallet_outlined, color: Colors.black54),
+                          const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            color: Colors.black54,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Payment method',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                const Text(
+                                  'Payment method',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   () {
@@ -788,8 +971,11 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                                     );
                                     final name = sel['name'] as String?;
                                     final desc = sel['description'] as String?;
-                                    if (name == null) return 'Choose payment method';
-                                    return desc == null || desc.isEmpty ? name : '$name — $desc';
+                                    if (name == null)
+                                      return 'Choose payment method';
+                                    return desc == null || desc.isEmpty
+                                        ? name
+                                        : '$name — $desc';
                                   }(),
                                   style: const TextStyle(color: Colors.black54),
                                 ),
@@ -815,7 +1001,10 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                       children: [
                         Row(
                           children: [
-                            const Text('Subtotal', style: TextStyle(fontWeight: FontWeight.w700)),
+                            const Text(
+                              'Subtotal',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                             const Spacer(),
                             Text(_formatVnd(subtotal)),
                           ],
@@ -824,29 +1013,48 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Text('Promotion' + (_selectedPromotion?['code'] != null ? ' (${_selectedPromotion!['code']})' : ''),
-                                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+                              Text(
+                                'Promotion${_selectedPromotion?['code'] != null ? ' (${_selectedPromotion!['code']})' : ''}',
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                               const Spacer(),
-                              Text('- ' + _formatVnd(discount),
-                                  style: const TextStyle(color: Colors.redAccent)),
+                              Text(
+                                '- ${_formatVnd(discount)}',
+                                style: const TextStyle(color: Colors.redAccent),
+                              ),
                             ],
                           ),
                         ],
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Text('Total', style: TextStyle(fontWeight: FontWeight.w800)),
+                            const Text(
+                              'Total',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
                             const Spacer(),
                             Row(
                               children: [
-                                const Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                                const Icon(
+                                  Icons.local_fire_department,
+                                  size: 16,
+                                  color: Colors.orange,
+                                ),
                                 const SizedBox(width: 4),
-                                Text('${_orderCal(order)} cal',
-                                    style: const TextStyle(color: Colors.black54)),
+                                Text(
+                                  '${_orderCal(order)} cal',
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
                                 const SizedBox(width: 12),
                                 Text(
                                   _formatVnd(total),
-                                  style: const TextStyle(color: primary, fontWeight: FontWeight.w800),
+                                  style: const TextStyle(
+                                    color: primary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ],
                             ),
@@ -884,7 +1092,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                         backgroundColor: primary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
                       ),
                       child: Text(_confirming ? 'Confirming…' : 'Confirm'),
                     ),
@@ -901,9 +1111,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   Future<void> _onConfirm(Map<String, dynamic>? order) async {
     const primary = Color(0xFF86C144);
     if (order == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No current order')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No current order')));
       return;
     }
     final orderId = _extractOrderId(order);
@@ -930,7 +1140,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       if (headers.isEmpty || !headers.containsKey('Authorization')) {
         throw Exception('Missing access token');
       }
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/confirm');
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/confirm',
+      );
       final payload = <String, dynamic>{
         'orderId': orderId,
         'paymentMethodId': paymentId,
@@ -940,8 +1152,8 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       // Log request for troubleshooting 404
       try {
         debugPrint('CONFIRM API -> POST $uri');
-        debugPrint('Headers(safe): ' + jsonEncode(_maskHeaders(headers)));
-        debugPrint('Body: ' + jsonEncode(payload));
+        debugPrint('Headers(safe): ${jsonEncode(_maskHeaders(headers))}');
+        debugPrint('Body: ${jsonEncode(payload)}');
       } catch (_) {}
       final resp = await http.post(
         uri,
@@ -965,9 +1177,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       final message = json['message'] as String?;
       if (statusCode != 200) {
         setState(() => _confirming = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message ?? 'Confirm failed')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message ?? 'Confirm failed')));
         return;
       }
       final data = json['data'];
@@ -984,7 +1196,10 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       }
       // Launch VNPAY URL in external browser
       final launchUri = Uri.parse(url);
-      final ok = await launchUrl(launchUri, mode: LaunchMode.externalApplication);
+      final ok = await launchUrl(
+        launchUri,
+        mode: LaunchMode.externalApplication,
+      );
       if (!ok) {
         setState(() => _confirming = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -998,9 +1213,9 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _confirming = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Confirm error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Confirm error: $e')));
     }
   }
 
@@ -1039,8 +1254,8 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
         final token = parts[1];
         final masked = token.length <= 8
             ? '***'
-            : token.substring(0, 4) + '...' + token.substring(token.length - 4);
-        m['Authorization'] = parts[0] + ' ' + masked;
+            : '${token.substring(0, 4)}...${token.substring(token.length - 4)}';
+        m['Authorization'] = '${parts[0]} $masked';
       } else {
         m['Authorization'] = '***';
       }
@@ -1053,5 +1268,9 @@ class _ConfirmData {
   final Map<String, dynamic>? order;
   final List<Map<String, dynamic>> payments;
   final Map<String, dynamic>? store; // selected store info (name, address)
-  const _ConfirmData({required this.order, required this.payments, required this.store});
+  const _ConfirmData({
+    required this.order,
+    required this.payments,
+    required this.store,
+  });
 }
