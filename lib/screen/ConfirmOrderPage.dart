@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobiletest/services/auth_service.dart';
 import 'package:mobiletest/services/store_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:mobiletest/services/deep_link_service.dart';
+import 'package:mobiletest/screen/OrderProgressPage.dart';
 
 class ConfirmOrderPage extends StatefulWidget {
   const ConfirmOrderPage({super.key});
@@ -21,22 +25,158 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   List<Map<String, dynamic>>? _promotionsCache;
   final Map<int, bool> _expanded = <int, bool>{};
   bool _confirming = false;
+  StreamSubscription<String?>? _linkSub;
+  bool _handledInitialLink = false;
+  Map<String, dynamic>? _currentOrder; // cache current order to avoid extra fetches
 
   @override
   void initState() {
     super.initState();
     _future = _fetchAll();
+    _initDeepLinks();
   }
 
   @override
   void dispose() {
+    _linkSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _initDeepLinks() async {
+    // Handle incoming links while app is in foreground
+    _linkSub = DeepLinkService.linkStream().listen((link) {
+      if (link == null) return;
+      final uri = Uri.tryParse(link);
+      if (uri != null) {
+        _handleVnpayUri(uri);
+      }
+    }, onError: (_) {});
+
+    // Handle the case where the app was launched/resumed via a link
+    if (_handledInitialLink) return;
+    try {
+      final initialLink = await DeepLinkService.getInitialLink();
+      final initial = initialLink == null ? null : Uri.tryParse(initialLink);
+      if (initial != null) {
+        _handleVnpayUri(initial);
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      _handledInitialLink = true;
+    }
+  }
+
+  bool _isVnpayResult(Uri uri) {
+    return uri.scheme == 'chickenapp' && uri.host == 'vnpay-result';
+  }
+
+  Future<void> _handleVnpayUri(Uri uri) async {
+    if (!_isVnpayResult(uri)) return;
+    // Gather all query parameters from the URI
+    final params = Map<String, String>.from(uri.queryParameters);
+    _logVnpayRedirect(uri, params);
+    if (params.isEmpty) {
+      // Sometimes parameters might be encoded in the fragment or path; try parsing manually if needed
+      // For now, if empty, just notify and return
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No payment result data found')),
+      );
+      return;
+    }
+    await _sendVnpayCallback(params);
+  }
+
+  Future<void> _sendVnpayCallback(Map<String, String> params) async {
+    try {
+      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/vnpay-callback');
+      final headers = await AuthService().authHeaders();
+      if (headers.isEmpty || !headers.containsKey('Authorization')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Missing token for callback')),
+        );
+        return;
+      }
+      final body = jsonEncode(params);
+      try {
+        debugPrint('VNPAY CALLBACK -> POST $uri');
+        debugPrint('Headers(safe): ' + jsonEncode(_maskHeaders(headers)));
+        debugPrint('Body: $body');
+      } catch (_) {}
+      final resp = await http.post(uri, headers: headers, body: body);
+      if (!mounted) return;
+      try {
+        debugPrint('VNPAY CALLBACK <- HTTP ${resp.statusCode}');
+        debugPrint('Response body: ${resp.body}');
+      } catch (_) {}
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('VNPAY callback failed: HTTP ${resp.statusCode}')),
+        );
+        return;
+      }
+      final json = jsonDecode(resp.body) as Map<String, dynamic>;
+      final statusCode = json['statusCode'] as int? ?? resp.statusCode;
+      final message = json['message'] as String? ?? 'Callback processed';
+      if (statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment successful!')),
+        );
+        // Refresh current order and navigate to progress screen
+        setState(() {
+          _future = _fetchAll();
+        });
+        final orderId = int.tryParse(params['orderId'] ?? '');
+        if (orderId != null && mounted) {
+          // Navigate to progress page
+          // Delay slightly to allow snackbar to display
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (!mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => OrderProgressPage(orderId: orderId),
+              ),
+            );
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment failed: $message')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('VNPAY callback error: $e')),
+      );
+    }
+  }
+
+  void _logVnpayRedirect(Uri uri, Map<String, String> params) {
+    try {
+      debugPrint('--- VNPAY REDIRECT RECEIVED ---');
+      debugPrint('Time: ${DateTime.now().toIso8601String()}');
+      debugPrint('URI: ${uri.toString()}');
+      debugPrint('  scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
+      if (params.isEmpty) {
+        debugPrint('Query params: <empty>');
+      } else {
+        debugPrint('Query params (${params.length}):');
+        for (final e in params.entries) {
+          debugPrint('  ${e.key} = ${e.value}');
+        }
+      }
+      debugPrint('--- END VNPAY REDIRECT ---');
+    } catch (_) {}
   }
 
   Future<_ConfirmData> _fetchAll() async {
     final order = await _fetchOrder();
     final payments = await _fetchPaymentMethods();
     final store = await _fetchStoreInfo();
+    _currentOrder = order;
     // pick first active payment as default
     final firstActive = payments.cast<Map<String, dynamic>?>().firstWhere(
           (e) => (e?['isActive'] ?? false) == true,
@@ -199,7 +339,8 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
     try {
       final list = (await _fetchPromotions()).where(_promoValid).toList(growable: false);
       if (!mounted) return;
-      final subtotal = _orderTotal(await _fetchOrder());
+      // Use cached order to avoid extra network calls when opening the sheet
+      final subtotal = _orderTotal(_currentOrder);
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -237,7 +378,14 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                         final selected = _selectedPromotion?['id'] == p['id'];
                         return InkWell(
                           onTap: () {
-                            setState(() => _selectedPromotion = p);
+                            setState(() {
+                              if (_selectedPromotion?['id'] == p['id']) {
+                                // Tapping the selected promotion again -> deselect
+                                _selectedPromotion = null;
+                              } else {
+                                _selectedPromotion = p;
+                              }
+                            });
                             Navigator.of(context).pop();
                           },
                           child: Container(
@@ -729,16 +877,8 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                     child: ElevatedButton(
                       onPressed: _selectedPaymentId == null || _confirming
                           ? null
-                          : () {
-                              setState(() => _confirming = true);
-                              // Placeholder: integrate place-order endpoint when available
-                              Future.delayed(const Duration(milliseconds: 500), () {
-                                if (!mounted) return;
-                                setState(() => _confirming = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Confirm – coming soon')),
-                                );
-                              });
+                          : () async {
+                              await _onConfirm(order);
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
@@ -756,6 +896,156 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
         },
       ),
     );
+  }
+
+  Future<void> _onConfirm(Map<String, dynamic>? order) async {
+    const primary = Color(0xFF86C144);
+    if (order == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No current order')),
+      );
+      return;
+    }
+    final orderId = _extractOrderId(order);
+    final paymentId = _selectedPaymentId;
+    if (paymentId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose payment method')),
+      );
+      return;
+    }
+    if (orderId == null || orderId <= 0) {
+      try {
+        debugPrint('Could not determine orderId from order:');
+        debugPrint(jsonEncode(order));
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot confirm: Invalid order id')),
+      );
+      return;
+    }
+    setState(() => _confirming = true);
+    try {
+      final headers = await AuthService().authHeaders();
+      if (headers.isEmpty || !headers.containsKey('Authorization')) {
+        throw Exception('Missing access token');
+      }
+      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/confirm');
+      final payload = <String, dynamic>{
+        'orderId': orderId,
+        'paymentMethodId': paymentId,
+        'promotionId': _selectedPromotion?['id'], // can be null
+        'channel': 'app',
+      };
+      // Log request for troubleshooting 404
+      try {
+        debugPrint('CONFIRM API -> POST $uri');
+        debugPrint('Headers(safe): ' + jsonEncode(_maskHeaders(headers)));
+        debugPrint('Body: ' + jsonEncode(payload));
+      } catch (_) {}
+      final resp = await http.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(payload),
+      );
+      if (!mounted) return;
+      try {
+        debugPrint('CONFIRM API <- HTTP ${resp.statusCode}');
+        debugPrint('Response body: ${resp.body}');
+      } catch (_) {}
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        setState(() => _confirming = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Confirm failed: HTTP ${resp.statusCode}')),
+        );
+        return;
+      }
+      final json = jsonDecode(resp.body) as Map<String, dynamic>;
+      final statusCode = json['statusCode'] as int? ?? resp.statusCode;
+      final message = json['message'] as String?;
+      if (statusCode != 200) {
+        setState(() => _confirming = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message ?? 'Confirm failed')),
+        );
+        return;
+      }
+      final data = json['data'];
+      final url = data is String ? data : (data?['url'] as String?);
+      try {
+        debugPrint('Payment URL: ${url ?? '(none)'}');
+      } catch (_) {}
+      if (url == null || url.isEmpty) {
+        setState(() => _confirming = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No payment URL received')),
+        );
+        return;
+      }
+      // Launch VNPAY URL in external browser
+      final launchUri = Uri.parse(url);
+      final ok = await launchUrl(launchUri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        setState(() => _confirming = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open payment URL')),
+        );
+        return;
+      }
+      // Keep confirming spinner shown until we get callback back or user returns
+      // Optionally, we could stop loading now; for UX, stop it.
+      setState(() => _confirming = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _confirming = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Confirm error: $e')),
+      );
+    }
+  }
+
+  int? _extractOrderId(Map<String, dynamic> order) {
+    dynamic tryParse(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is String) return int.tryParse(v);
+      return null;
+    }
+
+    // Direct keys
+    for (final k in const ['id', 'orderId', 'orderID', 'order_id']) {
+      final val = tryParse(order[k]);
+      if (val != null && val > 0) return val;
+    }
+
+    // Nested under 'order'
+    final nested = order['order'];
+    if (nested is Map<String, dynamic>) {
+      for (final k in const ['id', 'orderId', 'orderID', 'order_id']) {
+        final val = tryParse(nested[k]);
+        if (val != null && val > 0) return val;
+      }
+    }
+
+    return null;
+  }
+
+  Map<String, String> _maskHeaders(Map<String, String> headers) {
+    final m = Map<String, String>.from(headers);
+    final auth = m['Authorization'];
+    if (auth != null) {
+      final parts = auth.split(' ');
+      if (parts.length == 2) {
+        final token = parts[1];
+        final masked = token.length <= 8
+            ? '***'
+            : token.substring(0, 4) + '...' + token.substring(token.length - 4);
+        m['Authorization'] = parts[0] + ' ' + masked;
+      } else {
+        m['Authorization'] = '***';
+      }
+    }
+    return m;
   }
 }
 

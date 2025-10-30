@@ -12,6 +12,7 @@ import 'package:mobiletest/screen/DailyMenuListPage.dart';
 import 'package:mobiletest/components/dual_fabs.dart';
 import 'package:mobiletest/screen/BuildDishWizardPage.dart';
 import 'package:mobiletest/screen/CurrentOrderPage.dart';
+import 'package:mobiletest/screen/OrderHistoryPage.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -134,9 +135,19 @@ class HomePage extends StatelessWidget {
           switch (i) {
             case 0:
               break;
+            case 1:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const DailyMenuListPage()),
+              );
+              break;
             case 2:
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const RestaurantsListPage()),
+              );
+              break;
+            case 3:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OrderHistoryPage()),
               );
               break;
             case 4:

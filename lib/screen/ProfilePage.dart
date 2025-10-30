@@ -6,6 +6,8 @@ import 'package:mobiletest/services/auth_service.dart';
 import 'package:mobiletest/screen/SignInWidget.dart';
 import 'package:mobiletest/screen/HomePage.dart';
 import 'package:mobiletest/screen/RestaurantsListPage.dart';
+import 'package:mobiletest/screen/DailyMenuListPage.dart';
+import 'package:mobiletest/screen/OrderHistoryPage.dart';
 
 class ProfileData {
   final String fullName;
@@ -272,9 +274,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 (route) => false,
               );
               break;
+            case 1:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const DailyMenuListPage()),
+              );
+              break;
             case 2:
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const RestaurantsListPage()),
+              );
+              break;
+            case 3:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OrderHistoryPage()),
               );
               break;
             case 4:

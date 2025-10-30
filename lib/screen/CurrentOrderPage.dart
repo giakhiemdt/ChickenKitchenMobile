@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobiletest/screen/BuildDishWizardPage.dart';
 import 'package:mobiletest/services/auth_service.dart';
 import 'package:mobiletest/services/store_service.dart';
+import 'package:mobiletest/services/cart_events.dart';
 import 'package:mobiletest/screen/ConfirmOrderPage.dart';
 
 class CurrentOrderPage extends StatefulWidget {
@@ -20,11 +22,16 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
   bool _editMode = false;
   final Set<int> _selected = <int>{};
   bool _deleting = false;
+  StreamSubscription<void>? _cartSub;
 
   @override
   void initState() {
     super.initState();
     _future = _fetch();
+    _cartSub = CartEvents.stream.listen((_) {
+      if (!mounted) return;
+      _refresh();
+    });
   }
 
   Future<Map<String, dynamic>?> _fetch() async {
@@ -80,6 +87,12 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
       ).showSnackBar(SnackBar(content: Text('Lỗi khi xoá: $e')));
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _cartSub?.cancel();
+    super.dispose();
   }
 
   String _formatVnd(int vnd) {

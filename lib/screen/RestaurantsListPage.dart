@@ -7,6 +7,8 @@ import 'package:mobiletest/screen/BuildDishWizardPage.dart';
 import 'package:mobiletest/screen/HomePage.dart';
 import 'package:mobiletest/screen/ProfilePage.dart';
 import 'package:mobiletest/screen/CurrentOrderPage.dart';
+import 'package:mobiletest/screen/DailyMenuListPage.dart';
+import 'package:mobiletest/screen/OrderHistoryPage.dart';
 
 class Store {
   final int id;
@@ -200,8 +202,18 @@ class _RestaurantsListPageState extends State<RestaurantsListPage> {
                 (route) => false,
               );
               break;
+            case 1:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const DailyMenuListPage()),
+              );
+              break;
             case 2:
               break; // already here
+            case 3:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OrderHistoryPage()),
+              );
+              break;
             case 4:
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ProfilePage()),
