@@ -46,10 +46,34 @@ class _OnBoardingWidgetState extends State<OnBoardingWidget> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.red,
+        iconTheme: const IconThemeData(color: Colors.red),
+        centerTitle: true,
+        titleSpacing: 0,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/Logo.png',
+              width: 28,
+              height: 28,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Chicken Kitchen',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: PageView(
@@ -59,51 +83,52 @@ class _OnBoardingWidgetState extends State<OnBoardingWidget> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  pages.length,
-                  (i) => Container(
-                    width: i == index ? 18 : 10,
-                    height: 10,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: i == index ? Colors.black87 : Colors.grey.shade400,
-                      borderRadius: BorderRadius.circular(10),
+                children: [
+                  Row(
+                    children: List.generate(
+                      pages.length,
+                      (i) => Container(
+                        width: i == index ? 18 : 10,
+                        height: 10,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: i == index ? Colors.black87 : Colors.grey.shade400,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
+                  const Spacer(),
+                  SizedBox(
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                      ),
+                      onPressed: () async {
+                        if (index < pages.length - 1) {
+                          await controller.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.ease,
+                          );
+                        } else {
+                          if (!mounted) return;
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Text(
+                        index == pages.length - 1 ? 'Finish' : 'Continue',
+                      ),
                     ),
                   ),
-                  onPressed: () async {
-                    if (index < pages.length - 1) {
-                      await controller.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.ease,
-                      );
-                    } else {
-                      if (!mounted) return;
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: Text(
-                    index == pages.length - 1 ? 'Finish' : 'Continue',
-                  ),
-                ),
+                ],
               ),
             ),
           ],

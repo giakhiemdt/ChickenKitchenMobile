@@ -11,8 +11,13 @@ class FloatingBuildDishPill extends StatefulWidget {
 }
 
 class _FloatingBuildDishPillState extends State<FloatingBuildDishPill> {
-  static const Color kGreen = Color(0xFF7AC94A);
-  static const Color kGreenPressed = Color(0xFF6AB43E);
+  // Use the dark red primary used across Home
+  static const Color kPrimary = Color(0xFFB71C1C);
+  // Translucent tints for default and pressed backgrounds
+  // Default: solid white background per user's request
+  static const Color kPrimaryTint = Color(0xFFFFFFFF);
+  // Pressed: light translucent gray to show press feedback
+  static const Color kPrimaryTintPressed = Color(0x14E0E0E0); // ~8% opacity gray
   bool _pressed = false;
 
   @override
@@ -32,9 +37,10 @@ class _FloatingBuildDishPillState extends State<FloatingBuildDishPill> {
           height: h,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: _pressed ? const Color(0x146AB43E) : Colors.white, // slight green tint when pressed
+            // muted/translucent primary tint by default; slightly stronger when pressed
+            color: _pressed ? kPrimaryTintPressed : kPrimaryTint,
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: kGreen, width: 1.5),
+            border: Border.all(color: kPrimary, width: 1.5),
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -43,12 +49,12 @@ class _FloatingBuildDishPillState extends State<FloatingBuildDishPill> {
               Text(
                 'Build your dish',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: kGreen, fontWeight: FontWeight.w700),
+                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700),
               ),
               // Left icon without affecting label centering
               Positioned(
                 left: 16,
-                child: Icon(Icons.add, color: kGreen),
+                child: Icon(Icons.add, color: kPrimary),
               ),
             ],
           ),

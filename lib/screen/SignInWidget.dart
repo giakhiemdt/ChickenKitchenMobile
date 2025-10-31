@@ -21,12 +21,11 @@ class _SignInWidgetState extends State<SignInWidget> {
     });
 
     try {
-      // Thực hiện Google Sign-In + FCM + Backend login
       final tokens = await _auth.signInAndLoginBackend();
       if (tokens == null) {
         setState(() {
           _loading = false;
-          _error = 'Đăng nhập đã bị hủy';
+          _error = 'Sign in was cancelled';
         });
         return;
       }
@@ -59,137 +58,166 @@ class _SignInWidgetState extends State<SignInWidget> {
     const primary = Color(0xFF86C144);
 
     return Scaffold(
-      backgroundColor: primary,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top back bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: FractionallySizedBox(
-                widthFactor: 0.9,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () => Navigator.maybePop(context),
-                    child: const SizedBox(
-                      height: 44,
-                      child: Row(
-                        children: [
-                          SizedBox(width: 12),
-                          Icon(Icons.arrow_back_ios_new, size: 18),
-                        ],
-                      ),
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: NetworkImage('https://i.pinimg.com/736x/0b/62/62/0b6262777bff2b25d1b6f6dc5335fcb1.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: SizedBox(
+                    height: 44,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Material(
+                            color: Colors.white,
+                            shape: const CircleBorder(),
+                            elevation: 4,
+                            shadowColor: Colors.black26,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () => Navigator.maybePop(context),
+                              child: const SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Icon(
+                                  Icons.arrow_back_ios_new,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const Center(
+                          child: Text(
+                            'Chicken Kitchen',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Chicken\nKitchen',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Column(
-                children: [
-                  const FractionallySizedBox(
-                    widthFactor: 0.8,
-                    child: SizedBox(
-                      height: 18,
-                      child: DecoratedBox(
+
+                const SizedBox(height: 16),
+
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Expanded(child: SizedBox()),
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                         decoration: BoxDecoration(
-                          color: Color(0xFFD0F96F),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(25),
-                            topRight: Radius.circular(25),
-                          ),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: _loading
-                            ? const Center(child: CircularProgressIndicator())
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'Welcome Back',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black87,
+                        child: Padding(
+                          padding: const EdgeInsets.all(0),
+                          child: _loading
+                              ? const Center(child: CircularProgressIndicator())
+                              : Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'Welcome Back',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black87,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  const Text(
-                                    'Sign in to create your own order',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.black45,
+                                    const SizedBox(height: 6),
+                                    const Text(
+                                      'Sign in to create your own order',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black45,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  _OutlinedActionButton(
-                                    primary: primary,
-                                    assetIcon: 'assets/images/SignInGoogle.png',
-                                    label: 'Sign In With Google',
-                                    onPressed: _handleGoogleLogin,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _OutlinedActionButton(
-                                    primary: primary,
-                                    assetIcon: 'assets/images/SignInGitHub.png',
-                                    label: 'Sign In With Github',
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Chưa hỗ trợ GitHub'),
+                                    const SizedBox(height: 24),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: SizedBox(
+                                            height: 50,
+                                            child: _OutlinedActionButton(
+                                              primary: Colors.red,
+                                              assetIcon: 'assets/images/SignInGoogle.png',
+                                              label: '', 
+                                              onPressed: _handleGoogleLogin,
+                                            ),
+                                          ),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                  if (_error != null) ...[
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      _error!,
-                                      style: const TextStyle(color: Colors.red),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: SizedBox(
+                                            height: 50,
+                                            child: _OutlinedActionButton(
+                                              primary: Colors.red,
+                                              assetIcon: 'assets/images/SignInGitHub.png',
+                                              label: '', 
+                                              onPressed: () {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Chưa hỗ trợ GitHub'),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
+
+
+                                    if (_error != null) ...[
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        _error!,
+                                        style: const TextStyle(color: Colors.red),
+                                      ),
+                                    ],
                                   ],
-                                  const Spacer(),
-                                ],
-                              ),
+                                ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -210,13 +238,16 @@ class _OutlinedActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool iconOnly = label.isEmpty;
+    final double iconSize = iconOnly ? 32.0 : 24.0;
+
     return SizedBox(
       height: 50,
       width: double.infinity,
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.black,
-          side: BorderSide(color: primary, width: 1),
+          side: iconOnly ? BorderSide.none : BorderSide(color: primary, width: 1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -227,14 +258,15 @@ class _OutlinedActionButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (assetIcon != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: Image.asset(assetIcon!, width: 24, height: 24),
+              Image.asset(assetIcon!, width: iconSize, height: iconSize),
+            // show label only when non-empty; for icon-only buttons pass empty string
+            if (!iconOnly) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            ],
           ],
         ),
       ),

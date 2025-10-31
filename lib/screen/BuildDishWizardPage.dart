@@ -218,6 +218,19 @@ class _BuildDishWizardPageState extends State<BuildDishWizardPage> {
     return sum;
   }
 
+  int _calcCalories() {
+    int sum = 0;
+    _selectedQtys.forEach((_, map) {
+      map.forEach((id, qty) {
+        if (qty > 0) {
+          final it = _findItemById(id);
+          if (it != null) sum += it.cal * qty;
+        }
+      });
+    });
+    return sum;
+  }
+
   Future<void> _submitOrder() async {
     if (_submitting) return;
     final selections = <Map<String, dynamic>>[];
@@ -283,8 +296,8 @@ class _BuildDishWizardPageState extends State<BuildDishWizardPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
-    return Scaffold(
+  const primary = Color(0xFFB71C1C);
+  return Scaffold(
       appBar: AppBar(
         title: const Text('Build Your Dish'),
         backgroundColor: Colors.white,
@@ -295,7 +308,7 @@ class _BuildDishWizardPageState extends State<BuildDishWizardPage> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator(color: primary));
           }
           if (_steps.isEmpty) {
             return const Center(child: Text('No steps available'));
@@ -527,12 +540,7 @@ class _BuildDishWizardPageState extends State<BuildDishWizardPage> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Row(
                     children: [
-                      OutlinedButton(
-                        onPressed: _index == 0
-                            ? null
-                            : () => setState(() => _index = (_index - 1).clamp(0, _steps.length - 1)),
-                        child: const Text('Back'),
-                      ),
+                      // Back button removed per UI request — navigation handled via arrow/steps
                       const Spacer(),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 250),
@@ -562,23 +570,50 @@ class _BuildDishWizardPageState extends State<BuildDishWizardPage> {
                         ),
                       ),
                       const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: primary.withOpacity(.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: primary.withOpacity(.18)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
+                              const SizedBox(width: 6),
+                              Text('${_calcCalories()} kcal',
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: primary)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
                         onPressed: _submitting
                             ? null
                             : () async {
-                          if (_index < _steps.length - 1) {
-                            setState(() => _index++);
-                          } else {
-                            await _submitOrder();
-                          }
-                        },
+                                if (_index < _steps.length - 1) {
+                                  setState(() => _index++);
+                                } else {
+                                  await _submitOrder();
+                                }
+                              },
                         child: _submitting
                             ? const SizedBox(
                                 height: 20,
                                 width: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : Text(_index < _steps.length - 1 ? 'Next' : 'Finish'),
+                            : Icon(Icons.arrow_forward, color: Colors.white),
                       ),
                     ],
                   ),

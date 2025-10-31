@@ -82,7 +82,7 @@ class _PromotionsStripState extends State<PromotionsStrip> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+  const primary = Color(0xFFB71C1C);
     return SizedBox(
       height: 130,
       child: FutureBuilder<List<Promotion>>(
@@ -160,13 +160,13 @@ class _PromotionsStripState extends State<PromotionsStrip> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.local_offer, size: 14, color: Color(0xFF86C144)),
+                              const Icon(Icons.local_offer, size: 14, color: Color(0xFFB71C1C)),
                               const SizedBox(width: 4),
                               Text(
                                 p.code,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF2C6E1B),
+                                  color: Color(0xFF7A1414),
                                 ),
                               ),
                             ],

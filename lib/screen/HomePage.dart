@@ -19,7 +19,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+  const primary = Color(0xFFB71C1C);
     final displayName = FirebaseAuth.instance.currentUser?.displayName ?? 'there';
 
     return Scaffold(
@@ -111,6 +111,8 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const PromotionsStrip(),
+              // add extra bottom padding so content isn't hidden by bottom nav / FABs
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 96),
                 ],
               ),
             ),

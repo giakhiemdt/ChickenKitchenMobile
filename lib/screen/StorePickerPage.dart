@@ -83,10 +83,12 @@ class _StorePickerPageState extends State<StorePickerPage> {
                         width: 56,
                         height: 56,
                         decoration: const BoxDecoration(
-                          color: Color(0xFFE9F7D3),
+                          // pale/light red background per request
+                          color: Color(0xFFFFE5E5),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.store_mall_directory, color: primary),
+                        // icon color changed to a darker red for contrast
+                        child: const Icon(Icons.store_mall_directory, color: Color(0xFFB71C1C)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

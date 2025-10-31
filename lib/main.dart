@@ -51,6 +51,10 @@ class MyApp extends StatelessWidget {
         useMaterial3: false,
         primaryColor: const Color(0xFF86C144),
         scaffoldBackgroundColor: Colors.white,
+        // make progress indicators (Circular/Linear) use red by default
+        progressIndicatorTheme: const ProgressIndicatorThemeData(
+          color: Colors.red,
+        ),
         colorScheme: const ColorScheme.light(
           primary: Color(0xFF86C144),
           onPrimary: Colors.white,

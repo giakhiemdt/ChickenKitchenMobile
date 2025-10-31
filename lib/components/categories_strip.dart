@@ -34,7 +34,7 @@ class CategoriesStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+  const primary = Color(0xFFB71C1C);
     final width = MediaQuery.of(context).size.width;
     final itemsPerView = width >= 900
         ? 6

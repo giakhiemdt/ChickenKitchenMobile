@@ -6,7 +6,7 @@ class FloatingAddDishButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+  const primary = Color(0xFFB71C1C);
     return FloatingActionButton(
       heroTag: 'add_dish_fab',
       backgroundColor: Colors.white,

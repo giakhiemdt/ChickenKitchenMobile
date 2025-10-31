@@ -144,7 +144,7 @@ class _TodaysSpecialsState extends State<TodaysSpecials> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+  const primary = Color(0xFFB71C1C);
     return FutureBuilder<List<SpecialCategory>>(
       future: _future,
       builder: (context, snap) {
@@ -279,7 +279,7 @@ class _TodaysSpecialsState extends State<TodaysSpecials> {
                                 Text(
                                   _formatVnd(it.price),
                                   style: const TextStyle(
-                                    color: primary,
+                                    color: Color(0xFFB71C1C),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),

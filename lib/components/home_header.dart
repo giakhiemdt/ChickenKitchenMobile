@@ -23,7 +23,7 @@ class HomeHeader extends StatelessWidget {
             ),
             image: const DecorationImage(
               image: NetworkImage(
-                'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1200',
+                'https://i.pinimg.com/1200x/93/05/49/9305497643b9b18fec3c7fbe5c266ff1.jpg',
               ),
               fit: BoxFit.cover,
               colorFilter: ColorFilter.mode(
@@ -82,7 +82,7 @@ class HomeHeader extends StatelessWidget {
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'Search by name & restaurant',
+                      'Search by name & category',
                       style: TextStyle(color: Colors.black54),
                     ),
                   ),
@@ -90,7 +90,8 @@ class HomeHeader extends StatelessWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: primary,
+                      // use a dark red color for the tune button
+                      color: const Color(0xFFB71C1C),
                       borderRadius: BorderRadius.circular(19),
                     ),
                     child: const Icon(Icons.tune, color: Colors.white),

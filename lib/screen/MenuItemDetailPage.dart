@@ -126,10 +126,11 @@ class _MenuItemDetailPageState extends State<MenuItemDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Item Detail'),
+        // title removed per design: keep back button but no title text
+        title: const SizedBox.shrink(),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
@@ -181,14 +182,10 @@ class _MenuItemDetailPageState extends State<MenuItemDetailPage> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Text(
-                    _formatVnd(d.price),
-                    style: const TextStyle(color: primary, fontWeight: FontWeight.w800, fontSize: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
-                  const SizedBox(width: 4),
-                  Text('${d.cal} cal', style: const TextStyle(color: Colors.black54)),
+                  // Fire icon and larger calorie text; price removed from content (shown in bottom bar)
+                  const Icon(Icons.local_fire_department, size: 18, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Text('${d.cal} cal', style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w700)),
                   const Spacer(),
                   if (d.isActive)
                     Row(
@@ -211,23 +208,55 @@ class _MenuItemDetailPageState extends State<MenuItemDetailPage> {
               const SizedBox(height: 12),
               Text(d.description, style: const TextStyle(color: Colors.black87, height: 1.4)),
               const SizedBox(height: 16),
-              const Text('Nutrients', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final n in d.nutrients)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Text('${n.name}: ${n.quantity}${n.baseUnit}'),
-                    ),
+              // Header row: title on left and note on the right
+              Row(
+                children: const [
+                  Expanded(
+                    child: Text('Nutrients', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                  // Note: light gray, right aligned
+                  Text('* All quantities are measured in G', style: TextStyle(color: Colors.black45, fontSize: 12)),
                 ],
+              ),
+              const SizedBox(height: 8),
+              // Render nutrients as a 2-column table: left = name, right = number (+unit)
+              Table(
+                columnWidths: const {
+                  0: FlexColumnWidth(2),
+                  1: FlexColumnWidth(1),
+                },
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                children: d.nutrients.map((n) {
+                  return TableRow(children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE5E5), // pale red background
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(n.name, style: const TextStyle(color: Colors.black87)),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE5E5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          // show integer when possible, otherwise show decimal; omit unit (G)
+                          '${n.quantity % 1 == 0 ? n.quantity.toInt() : n.quantity}',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                      ),
+                    ),
+                  ]);
+                }).toList(),
               ),
               const SizedBox(height: 16),
               const Text('Recipe', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -248,107 +277,135 @@ class _MenuItemDetailPageState extends State<MenuItemDetailPage> {
           );
         },
       ),
-      bottomNavigationBar: widget.selectionMode ? SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Quantity selector
-              Container(
-                height: 48,
+      // Bottom bar needs the fetched item for price, so use a FutureBuilder to access _future
+      bottomNavigationBar: FutureBuilder<MenuItemDetail>(
+        future: _future,
+        builder: (ctx, snap) {
+          // If selection mode, show the quantity selector + Add as before
+          if (widget.selectionMode) {
+            return SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.black12),
-                  borderRadius: BorderRadius.circular(12),
                   color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      tooltip: 'Decrease',
-                      onPressed: (widget.selectionMode ? _qty > 0 : _qty > 1)
-                          ? () => setState(() => _qty--)
-                          : null,
-                      icon: const Icon(Icons.remove),
-                    ),
-                    SizedBox(
-                      width: 28,
-                      child: Center(
-                        child: Text('$_qty', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    // Quantity selector
+                    Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black12),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Decrease',
+                            onPressed: (widget.selectionMode ? _qty > 0 : _qty > 1)
+                                ? () => setState(() => _qty--)
+                                : null,
+                            icon: const Icon(Icons.remove),
+                          ),
+                          SizedBox(
+                            width: 28,
+                            child: Center(
+                              child: Text('$_qty', style: const TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Increase',
+                            onPressed: () => setState(() => _qty++),
+                            icon: const Icon(Icons.add),
+                          ),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Increase',
-                      onPressed: () => setState(() => _qty++),
-                      icon: const Icon(Icons.add),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // In selection mode, allow returning 0 to indicate removal
+                          final qty = widget.selectionMode
+                              ? (_qty < 0 ? 0 : _qty)
+                              : (_qty < 1 ? 1 : _qty);
+                          // Prefer returning result via Navigator.pop
+                          if (widget.onAdd != null) widget.onAdd!(qty);
+                          Navigator.of(context).pop<int>(qty);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Add'),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // In selection mode, allow returning 0 to indicate removal
-                    final qty = widget.selectionMode
-                        ? (_qty < 0 ? 0 : _qty)
-                        : (_qty < 1 ? 1 : _qty);
-                    // Prefer returning result via Navigator.pop
-                    if (widget.onAdd != null) widget.onAdd!(qty);
-                    Navigator.of(context).pop<int>(qty);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            );
+          }
+
+          // For non-selection mode, wait until data is loaded so we can show the price
+          if (snap.connectionState != ConnectionState.done || snap.hasError || snap.data == null) {
+            return const SizedBox.shrink();
+          }
+          final d = snap.data!;
+
+          return SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
                   ),
-                  child: const Text('Add'),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ) : SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
+              child: Row(
+                children: [
+                  // Price on the left
+                  Text(
+                    _formatVnd(d.price),
+                    style: const TextStyle(color: primary, fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                  const Spacer(),
+                  // Build button aligned to right
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BuildDishWizardPage()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(160, 52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                    ),
+                    child: const Text('Build your dish now'),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const BuildDishWizardPage()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
             ),
-            child: const Text('Build your dish now'),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
