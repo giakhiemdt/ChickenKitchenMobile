@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobiletest/screen/StorePickerPage.dart';
+import 'package:mobiletest/screen/EmployeePage.dart';
 import 'package:mobiletest/services/auth_service.dart';
 
 class SignInWidget extends StatefulWidget {
@@ -198,7 +199,27 @@ class _SignInWidgetState extends State<SignInWidget> {
                                         ),
                                       ],
                                     ),
-
+                                    
+                                    // 
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                                builder: (_) => const EmployeePage()),
+                                          );
+                                        },
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                                        ),
+                                        child: const Text('Employee area'),
+                                      ),
+                                    ),
+  //
 
                                     if (_error != null) ...[
                                       const SizedBox(height: 16),
