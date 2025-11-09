@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:mobiletest/features/auth/data/auth_service.dart';
 import 'package:mobiletest/core/services/http_guard.dart';
 import 'package:mobiletest/features/store/data/store_service.dart';
-import 'package:mobiletest/features/home/presentation/HomePage.dart';
 import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
 import 'package:mobiletest/features/orders/data/cart_events.dart';
 
@@ -139,11 +138,13 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFFB71C1C);
     final status =
         (_tracking?['status'] as String?)?.toUpperCase() ??
         (_order?['status'] as String?)?.toUpperCase() ??
         'CONFIRMED';
+    final statusColor = _statusColor(status);
+    // For CANCELLED: show all steps below with subdued style (timeline stays red but not marked done)
+    final isCancelledOrFailed = status == 'CANCELLED' || status == 'FAILED';
     final steps = _stepsForStatus(status);
     final progress = (_tracking?['progress'] as num?)?.toDouble();
     final total =
@@ -219,9 +220,22 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  'Status: $status',
-                                  style: const TextStyle(color: Colors.black54),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    status,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                                 if (progress != null) ...[
                                   const SizedBox(height: 8),
@@ -232,7 +246,7 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                                       minHeight: 6,
                                       backgroundColor: Colors.black12,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        primary,
+                                        statusColor,
                                       ),
                                     ),
                                   ),
@@ -383,7 +397,13 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                         children: [
                           ...List.generate(steps.length, (i) {
                             final s = steps[i];
-                            final done = s.done;
+                            final isCancelStep =
+                                isCancelledOrFailed &&
+                                (s.title.toUpperCase() == 'CANCELLED' ||
+                                    s.title.toUpperCase() == 'FAILED');
+                            final done = isCancelledOrFailed
+                                ? isCancelStep
+                                : s.done;
                             return Padding(
                               padding: EdgeInsets.only(
                                 bottom: i < steps.length - 1 ? 12 : 0,
@@ -404,7 +424,11 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                                               ? Icons.check_circle
                                               : Icons.radio_button_unchecked,
                                           color: done
-                                              ? primary
+                                              ? (isCancelledOrFailed
+                                                    ? Colors.red.shade600
+                                                    : statusColor)
+                                              : isCancelledOrFailed
+                                              ? Colors.red.shade600
                                               : Colors.black26,
                                           size: 20,
                                         ),
@@ -413,7 +437,13 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                                             width: 2,
                                             height: 36,
                                             color: done
-                                                ? primary.withOpacity(.4)
+                                                ? (isCancelledOrFailed
+                                                      ? Colors.red.shade300
+                                                      : statusColor.withOpacity(
+                                                          .4,
+                                                        ))
+                                                : isCancelledOrFailed
+                                                ? Colors.red.shade300
                                                 : Colors.black12,
                                           ),
                                       ],
@@ -427,7 +457,13 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: done
-                                              ? primary.withOpacity(.4)
+                                              ? (isCancelledOrFailed
+                                                    ? Colors.red.shade300
+                                                    : statusColor.withOpacity(
+                                                        .4,
+                                                      ))
+                                              : isCancelledOrFailed
+                                              ? Colors.red.shade300
                                               : Colors.black12,
                                         ),
                                       ),
@@ -643,6 +679,28 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
     );
   }
 
+  Color _statusColor(String s) {
+    switch (s.toUpperCase()) {
+      case 'FAILED':
+        return Colors.red.shade600;
+      case 'CONFIRMED':
+      case 'NEW':
+        return Colors.blue.shade700;
+      case 'PROCESSING':
+      case 'PREPARING':
+        return Colors.orange.shade700;
+      case 'READY':
+        return Colors.green.shade700;
+      case 'COMPLETED':
+      case 'DELIVERED':
+        return Colors.teal.shade700;
+      case 'CANCELLED':
+        return Colors.grey.shade600;
+      default:
+        return Colors.black87;
+    }
+  }
+
   Future<void> _cancelOrder() async {
     try {
       final headers = await AuthService().authHeaders();
@@ -717,6 +775,12 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
         steps[i] = steps[i].copyWith(done: i <= idx);
       }
     }
+    // Always append a terminal step for cancelled/failed under Completed
+    if (s == 'CANCELLED') {
+      steps.add(_StepVM('Cancelled', 'Your order was cancelled', true));
+    } else if (s == 'FAILED') {
+      steps.add(_StepVM('Failed', 'The order failed to process', true));
+    }
     return steps;
   }
 
@@ -762,14 +826,6 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
         newOrder['total'] ?? newOrder['totalPrice'] ?? newOrder['price'];
     if (oldTotal != newTotal) return true;
     return false;
-  }
-
-  void _goHome() {
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePage()),
-      (_) => false,
-    );
   }
 
   void _goBackToHistory() {

@@ -9,6 +9,7 @@ import 'package:mobiletest/features/store/data/store_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobiletest/core/services/deep_link_service.dart';
 import 'package:mobiletest/features/orders/presentation/OrderProgressPage.dart';
+import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
 
 class ConfirmOrderPage extends StatefulWidget {
   const ConfirmOrderPage({super.key});
@@ -44,28 +45,38 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   }
 
   Future<void> _initDeepLinks() async {
-    // Handle incoming links while app is in foreground
     _linkSub = DeepLinkService.linkStream().listen((link) {
       if (link == null) return;
       final uri = Uri.tryParse(link);
       if (uri != null) {
+        if (_isVnpayResult(uri)) {
         _handleVnpayUri(uri);
+        } else if (_isMomoResult(uri)) {
+          _handleMomoUri(uri);
+        }
       }
     }, onError: (_) {});
 
-    // Handle the case where the app was launched/resumed via a link
     if (_handledInitialLink) return;
     try {
       final initialLink = await DeepLinkService.getInitialLink();
       final initial = initialLink == null ? null : Uri.tryParse(initialLink);
       if (initial != null) {
+        if (_isVnpayResult(initial)) {
         _handleVnpayUri(initial);
+        } else if (_isMomoResult(initial)) {
+          _handleMomoUri(initial);
+        }
       }
     } catch (_) {
       // ignore
     } finally {
       _handledInitialLink = true;
     }
+  }
+
+  bool _isMomoResult(Uri uri) {
+    return uri.scheme == 'chickenapp' && uri.host == 'momo-app-return-result';
   }
 
   bool _isVnpayResult(Uri uri) {
@@ -159,6 +170,112 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
     }
   }
 
+  Future<void> _handleMomoUri(Uri uri) async {
+    final params = Map<String, String>.from(uri.queryParameters);
+    _logMomoRedirect(uri, params);
+
+    if (params.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No MoMo payment data found')),
+      );
+      return;
+    }
+
+    // Kiểm tra mã kết quả từ MoMo
+    final resultCode = params['resultCode'];
+    if (resultCode == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Missing MoMo result code')));
+      return;
+    }
+
+    if (resultCode != '0') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'MoMo payment failed: ${params['message'] ?? 'Unknown error'}',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await _sendMomoCallback(params);
+  }
+
+  Future<void> _sendMomoCallback(Map<String, String> params) async {
+    try {
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/payments/momo/callback',
+      );
+      final headers = await AuthService().authHeaders();
+      final body = jsonEncode(params);
+
+      debugPrint('MOMO CALLBACK -> POST $uri');
+      debugPrint('Headers(safe): ${jsonEncode(_maskHeaders(headers))}');
+      debugPrint('Body: $body');
+
+      final resp = await http.post(uri, headers: headers, body: body);
+
+      debugPrint('MOMO CALLBACK <- HTTP ${resp.statusCode}');
+      debugPrint('Response body: ${resp.body}');
+
+      if (!mounted) return;
+
+      if (resp.statusCode == 200) {
+        final json = jsonDecode(resp.body) as Map<String, dynamic>;
+        final message = json['message'] as String? ?? 'Payment successful';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('MoMo: $message')));
+
+        // Refresh order and navigate to Order History like VNPay flow
+        setState(() {
+          _future = _fetchAll();
+        });
+
+        // Navigate to Order History after a brief delay to allow snackbar to show
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const OrderHistoryPage()));
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('MoMo callback failed: HTTP ${resp.statusCode}'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('MoMo callback error: $e')));
+    }
+  }
+
+  void _logMomoRedirect(Uri uri, Map<String, String> params) {
+    try {
+      debugPrint('--- MOMO REDIRECT RECEIVED ---');
+      debugPrint('Time: ${DateTime.now().toIso8601String()}');
+      debugPrint('URI: ${uri.toString()}');
+      debugPrint('  scheme=${uri.scheme} host=${uri.host} path=${uri.path}');
+      if (params.isEmpty) {
+        debugPrint('Query params: <empty>');
+      } else {
+        debugPrint('Query params (${params.length}):');
+        for (final e in params.entries) {
+          debugPrint('  ${e.key} = ${e.value}');
+        }
+      }
+      debugPrint('--- END MOMO REDIRECT ---');
+    } catch (_) {}
+  }
+
   void _logVnpayRedirect(Uri uri, Map<String, String> params) {
     try {
       debugPrint('--- VNPAY REDIRECT RECEIVED ---');
@@ -176,6 +293,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
       debugPrint('--- END VNPAY REDIRECT ---');
     } catch (_) {}
   }
+  
 
   Future<_ConfirmData> _fetchAll() async {
     final order = await _fetchOrder();
@@ -613,9 +731,6 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
           final order = data.order;
           final store = data.store;
           final payments = data.payments;
-          final activePayments = payments
-              .where((e) => (e['isActive'] ?? false) == true)
-              .toList(growable: false);
           final dishes =
               (order?['dishes'] as List<dynamic>?)
                   ?.cast<Map<String, dynamic>>() ??
@@ -1109,7 +1224,6 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   }
 
   Future<void> _onConfirm(Map<String, dynamic>? order) async {
-    const primary = Color(0xFFB71C1C);
     if (order == null) {
       ScaffoldMessenger.of(
         context,

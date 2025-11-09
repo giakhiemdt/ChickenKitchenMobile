@@ -11,6 +11,7 @@ import 'package:mobiletest/shared/screens/LoadingScreen.dart';
 import 'package:mobiletest/features/employee/presentation/EmployeePage.dart';
 import 'package:mobiletest/features/menu/presentation/BuildDishWizardPage.dart';
 import 'package:mobiletest/core/config/firebase_options.dart';
+import 'package:mobiletest/shared/widgets/in_app_notification.dart';
 
 /// Global navigator key để show dialog từ FCM
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -91,19 +92,13 @@ class _StartUpRouterState extends State<_StartUpRouter> {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
       print('[FG] Nhận notification: ${notification?.title}');
-      if (notification != null && navigatorKey.currentContext != null) {
-        showDialog(
-          context: navigatorKey.currentContext!,
-          builder: (context) => AlertDialog(
-            title: Text(notification.title ?? 'Thông báo'),
-            content: Text(notification.body ?? 'Bạn có thông báo mới.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Đóng'),
-              ),
-            ],
-          ),
+      final ctx = navigatorKey.currentContext;
+      if (notification != null && ctx != null) {
+        InAppNotification.show(
+          ctx,
+          title: notification.title,
+          body: notification.body,
+          visibleDuration: const Duration(seconds: 1),
         );
       }
     });

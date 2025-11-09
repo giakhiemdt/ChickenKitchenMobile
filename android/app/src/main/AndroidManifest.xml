@@ -30,10 +30,20 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
+                <!-- Vnpay callback -->
                 <data
                     android:scheme="chickenapp"
                     android:host="vnpay-result" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- MoMo callback -->
+                <data
+                    android:scheme="chickenapp"
+                    android:host="momo-app-return-result" />
             </intent-filter>
 
         </activity>

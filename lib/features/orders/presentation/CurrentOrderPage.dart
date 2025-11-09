@@ -35,6 +35,82 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
     });
   }
 
+  int? _extractOrderId(Map<String, dynamic> order) {
+    dynamic tryParse(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is String) return int.tryParse(v);
+      return null;
+    }
+
+    for (final k in const ['id', 'orderId', 'orderID', 'order_id']) {
+      final val = tryParse(order[k]);
+      if (val != null && val > 0) return val;
+    }
+    final nested = order['order'];
+    if (nested is Map<String, dynamic>) {
+      for (final k in const ['id', 'orderId', 'orderID', 'order_id']) {
+        final val = tryParse(nested[k]);
+        if (val != null && val > 0) return val;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _cancelCart(Map<String, dynamic> order) async {
+    final orderId = _extractOrderId(order);
+    if (orderId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không tìm thấy mã đơn hàng để xoá.')),
+      );
+      return;
+    }
+    await _sendCancelCart(orderId, 'Remove Cart');
+  }
+
+  Future<void> _sendCancelCart(int orderId, String reason) async {
+    try {
+      setState(() => _deleting = true);
+      final headers = await AuthService().authHeaders();
+      if (!(headers['Authorization']?.startsWith('Bearer ') ?? false)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bạn cần đăng nhập để xoá.')),
+        );
+        setState(() => _deleting = false);
+        return;
+      }
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/api/orders/cancel',
+      );
+      final body = jsonEncode(<String, dynamic>{
+        'orderId': orderId,
+        'reason': 'Remove Cart',
+      });
+      final resp = await http.post(uri, headers: headers, body: body);
+      if (!mounted) return;
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã xoá giỏ hàng')));
+        _selected.clear();
+        await _refresh();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Xoá thất bại: HTTP ${resp.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi xoá: $e')));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
   Future<Map<String, dynamic>?> _fetch() async {
     final storeId = await StoreService.getSelectedStoreId() ?? 1;
     final headers = await AuthService().authHeaders();
@@ -579,35 +655,10 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                     ),
                     child: _editMode
                         ? ElevatedButton(
-                            onPressed: _selected.isEmpty || _deleting
+                            onPressed: _deleting
                                 ? null
                                 : () async {
-                                    setState(() => _deleting = true);
-                                    try {
-                                      bool allOk = true;
-                                      for (final id in _selected.toList()) {
-                                        final ok = await _deleteDish(id);
-                                        allOk = allOk && ok;
-                                      }
-                                      await _refresh();
-                                      _selected.clear();
-                                      if (!mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            allOk
-                                                ? 'Đã xoá món đã chọn'
-                                                : 'Một số món xoá thất bại',
-                                          ),
-                                        ),
-                                      );
-                                    } finally {
-                                      if (mounted) {
-                                        setState(() => _deleting = false);
-                                      }
-                                    }
+                                    await _cancelCart(data);
                                   },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.redAccent,

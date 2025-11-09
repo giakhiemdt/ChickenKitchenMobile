@@ -23,6 +23,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   List<Map<String, dynamic>> _orders = [];
   List<String> _statuses = const [];
   String _keyword = '';
+  String _selectedStatus = 'ALL';
+  String _selectedDateRange = 'ALL'; // ALL, TODAY, WEEK
+  String _sortMode = 'NEWEST'; // NEWEST or OLDEST
+  bool _cancelling = false;
   final TextEditingController _searchCtrl = TextEditingController();
 
   @override
@@ -92,7 +96,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFFB71C1C);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -159,11 +162,23 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                   : RefreshIndicator(
                       onRefresh: _fetch,
                       child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredOrders().length,
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                itemCount: 1 + _filteredOrders().length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, i) {
-                          final it = _filteredOrders()[i];
+                  if (i == 0) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStatusFilter(),
+                        const SizedBox(height: 10),
+                        _buildDateFilter(),
+                        const SizedBox(height: 10),
+                        _buildSortBar(),
+                      ],
+                    );
+                  }
+                  final it = _filteredOrders()[i - 1];
                           final orderId = it['orderId'] ?? it['id'] ?? 0;
                           final status = (it['status'] as String? ?? 'CONFIRMED').toUpperCase();
                           final total = (it['totalPrice'] ?? it['total'] ?? 0) as int;
@@ -172,6 +187,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
                           final steps = _stepsForStatus(status);
                           final cancelled = status == 'CANCELLED' || status == 'FAILED';
+                  final statusColor = _statusColor(status);
 
                           return InkWell(
                             onTap: () {
@@ -203,12 +219,21 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                                                 style: const TextStyle(
                                                     fontWeight: FontWeight.w700)),
                                             const SizedBox(height: 2),
-                                            Text(
-                                              'Status: $status',
-                                              style: TextStyle(
-                                                color: cancelled
-                                                    ? Colors.red
-                                                    : Colors.black54,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        status,
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                               ),
                                             ),
                                           ],
@@ -246,7 +271,31 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  _MiniProgress(steps: steps, primary: primary, cancelled: cancelled),
+                          _MiniProgress(
+                            steps: steps,
+                            primary: statusColor,
+                            cancelled: cancelled,
+                          ),
+                          const SizedBox(height: 10),
+                          if (_canCancel(status))
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: _cancelling
+                                    ? null
+                                    : () => _promptCancel(orderId as int),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFB71C1C),
+                                  side: const BorderSide(
+                                    color: Color(0xFFB71C1C),
+                                  ),
+                                  minimumSize: const Size.fromHeight(40),
+                                ),
+                                child: Text(
+                                  _cancelling ? 'Cancelling…' : 'Cancel order',
+                                ),
+                              ),
+                            ),
                                 ],
                               ),
                             ),
@@ -258,17 +307,297 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   }
 
   List<Map<String, dynamic>> _filteredOrders() {
-    if (_keyword.isEmpty) return _orders;
-    return _orders.where((o) {
+    final list = _orders.where((o) {
       final id = (o['orderId'] ?? o['id'] ?? '').toString().toLowerCase();
       final status = (o['status'] as String? ?? '').toLowerCase();
-      return id.contains(_keyword) || status.contains(_keyword);
+      final matchesKeyword =
+          _keyword.isEmpty ||
+          id.contains(_keyword) ||
+          status.contains(_keyword);
+      final matchesStatus =
+          _selectedStatus == 'ALL' || status.toUpperCase() == _selectedStatus;
+      final createdAtIso = (o['createdAt'] as String?) ?? '';
+      bool matchesDate = true;
+      if (_selectedDateRange != 'ALL' && createdAtIso.isNotEmpty) {
+        final dt = DateTime.tryParse(createdAtIso)?.toLocal();
+        if (dt != null) {
+          final now = DateTime.now();
+          switch (_selectedDateRange) {
+            case 'TODAY':
+              matchesDate =
+                  dt.year == now.year &&
+                  dt.month == now.month &&
+                  dt.day == now.day;
+              break;
+            case 'WEEK':
+              final startOfWeek = now.subtract(
+                Duration(days: now.weekday - 1),
+              ); // Monday
+              final endOfWeek = startOfWeek.add(const Duration(days: 7));
+              matchesDate =
+                  dt.isAfter(
+                    startOfWeek.subtract(const Duration(milliseconds: 1)),
+                  ) &&
+                  dt.isBefore(endOfWeek);
+              break;
+          }
+        }
+      }
+      return matchesKeyword && matchesStatus && matchesDate;
     }).toList();
+    list.sort((a, b) {
+      final aIso = (a['createdAt'] as String?) ?? '';
+      final bIso = (b['createdAt'] as String?) ?? '';
+      final aDt = DateTime.tryParse(aIso)?.toLocal();
+      final bDt = DateTime.tryParse(bIso)?.toLocal();
+      int cmp;
+      if (aDt == null && bDt == null)
+        cmp = 0;
+      else if (aDt == null)
+        cmp = -1;
+      else if (bDt == null)
+        cmp = 1;
+      else
+        cmp = aDt.compareTo(bDt);
+      return _sortMode == 'NEWEST' ? -cmp : cmp; // NEWEST = descending
+    });
+    return list;
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+  }
+
+  // UI: Status filter chips (ALL + statuses)
+  Widget _buildStatusFilter() {
+    final available = _availableStatuses();
+    if (available.isEmpty) return const SizedBox.shrink();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final s in available)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ChoiceChip(
+                label: Text(_displayStatus(s)),
+                selected: _selectedStatus == s,
+                selectedColor: _statusColor(s).withOpacity(0.18),
+                labelStyle: TextStyle(
+                  color: _selectedStatus == s
+                      ? _statusColor(s)
+                      : Colors.black87,
+                  fontWeight: _selectedStatus == s
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+                side: BorderSide(color: _statusColor(s).withOpacity(0.5)),
+                onSelected: (_) => setState(() => _selectedStatus = s),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateFilter() {
+    const dates = ['ALL', 'TODAY', 'WEEK'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final d in dates) ...[
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ChoiceChip(
+                label: Text(_displayDateRange(d)),
+                selected: _selectedDateRange == d,
+                selectedColor: Colors.indigo.withOpacity(0.15),
+                labelStyle: TextStyle(
+                  color: _selectedDateRange == d
+                      ? Colors.indigo.shade700
+                      : Colors.black87,
+                  fontWeight: _selectedDateRange == d
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+                side: BorderSide(
+                  color:
+                      (_selectedDateRange == d ? Colors.indigo : Colors.black26)
+                          .withOpacity(0.5),
+                ),
+                onSelected: (_) => setState(() => _selectedDateRange = d),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _displayDateRange(String d) {
+    switch (d) {
+      case 'TODAY':
+        return 'Today';
+      case 'WEEK':
+        return 'This Week';
+      case 'ALL':
+      default:
+        return 'All Dates';
+    }
+  }
+
+  Widget _buildSortBar() {
+    return Row(
+      children: [
+        const Icon(Icons.sort, size: 18, color: Colors.black54),
+        const SizedBox(width: 6),
+        DropdownButton<String>(
+          value: _sortMode,
+          underline: const SizedBox.shrink(),
+          items: const [
+            DropdownMenuItem(value: 'NEWEST', child: Text('Newest first')),
+            DropdownMenuItem(value: 'OLDEST', child: Text('Oldest first')),
+          ],
+          onChanged: (v) {
+            if (v != null) setState(() => _sortMode = v);
+          },
+        ),
+        const Spacer(),
+        Text(
+          '${_filteredOrders().length} orders',
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+      ],
+    );
+  }
+
+  List<String> _availableStatuses() {
+    // Merge statuses from API and from actual orders; ensure 'ALL' at start
+    final set = <String>{..._statuses.map((e) => e.toUpperCase())};
+    for (final o in _orders) {
+      final s = (o['status'] as String? ?? '').toUpperCase();
+      if (s.isNotEmpty) set.add(s);
+    }
+    final list = ['ALL', ...set.toList()..sort()];
+    return list;
+  }
+
+  String _displayStatus(String s) {
+    if (s == 'ALL') return 'All';
+    final lower = s.toLowerCase();
+    return lower[0].toUpperCase() + lower.substring(1);
+  }
+
+  Color _statusColor(String s) {
+    switch (s.toUpperCase()) {
+      case 'FAILED':
+        return Colors.red.shade600;
+      case 'CONFIRMED':
+      case 'NEW':
+        return Colors.blue.shade700;
+      case 'PROCESSING':
+      case 'PREPARING':
+        return Colors.orange.shade700;
+      case 'READY':
+        return Colors.green.shade700;
+      case 'COMPLETED':
+      case 'DELIVERED':
+        return Colors.teal.shade700;
+      case 'CANCELLED':
+        return Colors.grey.shade600;
+      default:
+        return Colors.black87;
+    }
+  }
+
+  bool _canCancel(String status) {
+    // Hide cancel when order is COMPLETED or already CANCELLED
+    final s = status.toUpperCase();
+    return s != 'COMPLETED' && s != 'CANCELLED';
+  }
+
+  Future<void> _promptCancel(int orderId) async {
+    final ctrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        const primary = Color(0xFFB71C1C);
+        return AlertDialog(
+          title: const Text('Cancel order'),
+          content: TextField(
+            controller: ctrl,
+            cursorColor: primary,
+            decoration: const InputDecoration(
+              labelText: 'Reason (optional)',
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: primary, width: 2),
+              ),
+            ),
+            maxLines: 2,
+          ),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: primary),
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+              child: const Text('Confirm cancel'),
+            ),
+          ],
+        );
+      },
+    );
+    if (reason == null) return;
+    await _sendCancel(orderId, reason);
+  }
+
+  Future<void> _sendCancel(int orderId, String reason) async {
+    try {
+      setState(() => _cancelling = true);
+      final headers = await AuthService().authHeaders();
+      if (headers.isEmpty || !headers.containsKey('Authorization')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Missing token')));
+        setState(() => _cancelling = false);
+        return;
+      }
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/api/orders/cancel',
+      );
+      final body = jsonEncode(<String, dynamic>{
+        'orderId': orderId,
+        'reason': reason.isEmpty ? 'Remove out the cart' : reason,
+      });
+      final resp = await http.post(uri, headers: headers, body: body);
+      if (!mounted) return;
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Order cancelled')));
+        await _fetch();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cancel failed: HTTP ${resp.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Cancel error: $e')));
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
   }
 
   Widget get bottomNavigationBar => AppBottomNav(
