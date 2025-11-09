@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/components/app_bottom_nav.dart';
-import 'package:mobiletest/services/auth_service.dart';
-import 'package:mobiletest/screen/SignInWidget.dart';
-import 'package:mobiletest/screen/HomePage.dart';
-import 'package:mobiletest/screen/RestaurantsListPage.dart';
-import 'package:mobiletest/screen/DailyMenuListPage.dart';
-import 'package:mobiletest/screen/OrderHistoryPage.dart';
+import 'package:mobiletest/shared/widgets/app_bottom_nav.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
+import 'package:mobiletest/features/auth/presentation/SignInWidget.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
+import 'package:mobiletest/features/restaurants/presentation/RestaurantsListPage.dart';
+import 'package:mobiletest/features/menu/presentation/DailyMenuListPage.dart';
+import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
 
 class ProfileData {
   final String fullName;

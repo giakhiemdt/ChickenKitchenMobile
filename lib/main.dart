@@ -2,13 +2,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/screen/SplashWidget.dart';
-import 'package:mobiletest/screen/HomePage.dart';
-import 'package:mobiletest/screen/StorePickerPage.dart';
-import 'package:mobiletest/services/store_service.dart';
-import 'package:mobiletest/services/auth_service.dart';
-import 'package:mobiletest/screen/LoadingScreen.dart';
-import 'firebase_options.dart';
+import 'package:mobiletest/features/auth/presentation/SplashWidget.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
+import 'package:mobiletest/features/restaurants/presentation/StorePickerPage.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
+import 'package:mobiletest/shared/screens/LoadingScreen.dart';
+import 'package:mobiletest/features/employee/presentation/EmployeePage.dart';
+import 'package:mobiletest/features/menu/presentation/BuildDishWizardPage.dart';
+import 'package:mobiletest/core/config/firebase_options.dart';
 
 /// Global navigator key để show dialog từ FCM
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -133,6 +135,10 @@ class _StartUpRouterState extends State<_StartUpRouter> {
             return const HomePage();
           case 'store':
             return const StorePickerPage();
+          case 'employee':
+            return const EmployeePage();
+          case 'storeOrder':
+            return const BuildDishWizardPage();
           default:
             return const SplashWidget();
         }
@@ -144,6 +150,14 @@ class _StartUpRouterState extends State<_StartUpRouter> {
   Future<String> _decideStartUpScreen() async {
     final tokens = await _auth.loadTokens();
     if (tokens == null) return 'splash';
+
+    // Role-based redirect using accessToken claims
+    try {
+      final claims = _auth.decodeAccessTokenClaims(tokens.accessToken);
+      final role = (claims?['role'] as String?)?.toUpperCase();
+      if (role == 'EMPLOYEE') return 'employee';
+      if (role == 'STORE') return 'storeOrder';
+    } catch (_) {}
 
     final selected = await StoreService.loadSelectedStore();
     if (selected == null) return 'store';

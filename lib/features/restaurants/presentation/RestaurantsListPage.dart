@@ -1,14 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/components/app_bottom_nav.dart';
-import 'package:mobiletest/components/dual_fabs.dart';
-import 'package:mobiletest/screen/BuildDishWizardPage.dart';
-import 'package:mobiletest/screen/HomePage.dart';
-import 'package:mobiletest/screen/ProfilePage.dart';
-import 'package:mobiletest/screen/CurrentOrderPage.dart';
-import 'package:mobiletest/screen/DailyMenuListPage.dart';
-import 'package:mobiletest/screen/OrderHistoryPage.dart';
+import 'package:mobiletest/shared/widgets/app_bottom_nav.dart';
+import 'package:mobiletest/shared/widgets/dual_fabs.dart';
+import 'package:mobiletest/features/menu/presentation/BuildDishWizardPage.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
+import 'package:mobiletest/features/profile/presentation/ProfilePage.dart';
+import 'package:mobiletest/features/orders/presentation/CurrentOrderPage.dart';
+import 'package:mobiletest/features/menu/presentation/DailyMenuListPage.dart';
+import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
 
 class Store {
   final int id;

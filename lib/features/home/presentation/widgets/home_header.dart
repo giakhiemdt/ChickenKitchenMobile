@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mobiletest/services/store_service.dart';
-import 'package:mobiletest/screen/StorePickerPage.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
+import 'package:mobiletest/features/restaurants/presentation/StorePickerPage.dart';
 
 class HomeHeader extends StatelessWidget {
   final String displayName;

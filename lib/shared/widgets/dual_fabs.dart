@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mobiletest/components/floating_cart_button.dart';
-import 'package:mobiletest/components/floating_build_dish_pill.dart';
+import 'package:mobiletest/shared/widgets/floating_cart_button.dart';
+import 'package:mobiletest/shared/widgets/floating_build_dish_pill.dart';
 // no custom constants needed for placement
 
 class DualFABs extends StatelessWidget {

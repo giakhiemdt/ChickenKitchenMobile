@@ -3,11 +3,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/services/auth_service.dart';
-import 'package:mobiletest/services/store_service.dart';
-import 'package:mobiletest/screen/HomePage.dart';
-import 'package:mobiletest/screen/OrderHistoryPage.dart';
-import 'package:mobiletest/services/cart_events.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
+import 'package:mobiletest/core/services/http_guard.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
+import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
+import 'package:mobiletest/features/orders/data/cart_events.dart';
 
 class OrderProgressPage extends StatefulWidget {
   final int orderId;
@@ -55,6 +56,7 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
         'https://chickenkitchen.milize-lena.space/api/orders/${widget.orderId}/tracking',
       );
       final trackingResp = await http.get(trackingUri, headers: headers);
+      if (await HttpGuard.handleUnauthorized(context, trackingResp)) return;
       if (trackingResp.statusCode != 200) {
         setState(() {
           _loading = false;
@@ -72,6 +74,7 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
           'https://chickenkitchen.milize-lena.space/api/orders/${widget.orderId}',
         );
         final orderResp = await http.get(orderUri, headers: headers);
+        if (await HttpGuard.handleUnauthorized(context, orderResp)) return;
         if (orderResp.statusCode == 200) {
           final orderMap = jsonDecode(orderResp.body) as Map<String, dynamic>;
           orderData = orderMap['data'] as Map<String, dynamic>?;
@@ -133,9 +136,10 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     final status =
         (_tracking?['status'] as String?)?.toUpperCase() ??
         (_order?['status'] as String?)?.toUpperCase() ??
@@ -617,6 +621,21 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    // Cancel button (hide for FAILED/CANCELLED/COMPLETED)
+                    if (!(status == 'FAILED' || status == 'CANCELLED' || status == 'COMPLETED'))
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _cancelOrder,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFB71C1C),
+                            side: const BorderSide(color: Color(0xFFB71C1C)),
+                            minimumSize: const Size.fromHeight(44),
+                          ),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -624,43 +643,81 @@ class _OrderProgressPageState extends State<OrderProgressPage> {
     );
   }
 
+  Future<void> _cancelOrder() async {
+    try {
+      final headers = await AuthService().authHeaders();
+      if (!(headers['Authorization']?.startsWith('Bearer ') ?? false)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must sign in to cancel.')),
+        );
+        return;
+      }
+      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/${widget.orderId}/cancel');
+      final resp = await http.post(uri, headers: headers);
+      if (await HttpGuard.handleUnauthorized(context, resp)) return;
+      if (!mounted) return;
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order cancelled')),
+        );
+        await _fetch();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cancel failed: HTTP ${resp.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cancel error: $e')),
+      );
+    }
+  }
+
+  
+
   List<_StepVM> _stepsForStatus(String status) {
-    // Generic Grab-like steps
-    final all = [
-      _StepVM('Order confirmed', 'We received your order', true),
-      _StepVM('Preparing', 'Kitchen is preparing your food', false),
-      _StepVM('Ready for pickup', 'Your food is ready', false),
-      _StepVM('On the way', 'Driver is on the way', false),
-      _StepVM('Delivered', 'Enjoy your meal!', false),
+    // Pickup flow only (no delivery): Confirmed -> Processing -> Ready -> Completed
+    final List<_StepVM> steps = <_StepVM>[
+      _StepVM('Confirmed', 'We received your order', false),
+      _StepVM('Processing', 'Kitchen is preparing your food', false),
+      _StepVM('Ready', 'Your food is ready for pickup', false),
+      _StepVM('Completed', 'Enjoy your meal!', false),
     ];
 
+    final s = status.toUpperCase();
     int idx;
-    switch (status) {
+    switch (s) {
       case 'NEW':
+        idx = -1; // nothing done yet
+        break;
       case 'CONFIRMED':
         idx = 0;
         break;
-      case 'PREPARING':
       case 'PROCESSING':
+      case 'PREPARING':
         idx = 1;
         break;
       case 'READY':
         idx = 2;
         break;
-      case 'DELIVERING':
+      case 'COMPLETED':
         idx = 3;
         break;
-      case 'COMPLETED':
-      case 'DELIVERED':
-        idx = 4;
+      case 'FAILED':
+      case 'CANCELLED':
+        idx = -1; // special: we won't mark progress bars as done
         break;
       default:
-        idx = 0;
+        idx = -1;
     }
-    for (int i = 0; i < all.length; i++) {
-      all[i] = all[i].copyWith(done: i <= idx);
+    if (idx >= 0) {
+      for (int i = 0; i < steps.length; i++) {
+        steps[i] = steps[i].copyWith(done: i <= idx);
+      }
     }
-    return all;
+    return steps;
   }
 
   String _formatVnd(int vnd) {

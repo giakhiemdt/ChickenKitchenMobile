@@ -2,13 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/screen/OrderProgressPage.dart';
-import 'package:mobiletest/components/app_bottom_nav.dart';
-import 'package:mobiletest/screen/HomePage.dart';
-import 'package:mobiletest/screen/RestaurantsListPage.dart';
-import 'package:mobiletest/screen/ProfilePage.dart';
-import 'package:mobiletest/services/auth_service.dart';
-import 'package:mobiletest/services/store_service.dart';
+import 'package:mobiletest/features/orders/presentation/OrderProgressPage.dart';
+import 'package:mobiletest/shared/widgets/app_bottom_nav.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
+import 'package:mobiletest/features/restaurants/presentation/RestaurantsListPage.dart';
+import 'package:mobiletest/features/profile/presentation/ProfilePage.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
 
 class OrderHistoryPage extends StatefulWidget {
   const OrderHistoryPage({super.key});
@@ -22,6 +22,8 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   String? _error;
   List<Map<String, dynamic>> _orders = [];
   List<String> _statuses = const [];
+  String _keyword = '';
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -90,13 +92,50 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order History'),
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+            Expanded(
+              child: Container(
+                height: 40,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F5F7),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: Colors.black54, size: 20),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchCtrl,
+                        decoration: const InputDecoration(
+                          isCollapsed: true,
+                          border: InputBorder.none,
+                          hintText: 'Search orders (id, status)…',
+                        ),
+                        onChanged: (v) => setState(() => _keyword = v.trim().toLowerCase()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: bottomNavigationBar,
       body: _loading
@@ -121,10 +160,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       onRefresh: _fetch,
                       child: ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: _orders.length,
+                        itemCount: _filteredOrders().length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, i) {
-                          final it = _orders[i];
+                          final it = _filteredOrders()[i];
                           final orderId = it['orderId'] ?? it['id'] ?? 0;
                           final status = (it['status'] as String? ?? 'CONFIRMED').toUpperCase();
                           final total = (it['totalPrice'] ?? it['total'] ?? 0) as int;
@@ -216,6 +255,15 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                       ),
                     ),
     );
+  }
+
+  List<Map<String, dynamic>> _filteredOrders() {
+    if (_keyword.isEmpty) return _orders;
+    return _orders.where((o) {
+      final id = (o['orderId'] ?? o['id'] ?? '').toString().toLowerCase();
+      final status = (o['status'] as String? ?? '').toLowerCase();
+      return id.contains(_keyword) || status.contains(_keyword);
+    }).toList();
   }
 
   @override

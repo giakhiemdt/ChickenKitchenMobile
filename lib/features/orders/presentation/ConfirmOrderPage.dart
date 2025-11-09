@@ -4,11 +4,11 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/services/auth_service.dart';
-import 'package:mobiletest/services/store_service.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:mobiletest/services/deep_link_service.dart';
-import 'package:mobiletest/screen/OrderProgressPage.dart';
+import 'package:mobiletest/core/services/deep_link_service.dart';
+import 'package:mobiletest/features/orders/presentation/OrderProgressPage.dart';
 
 class ConfirmOrderPage extends StatefulWidget {
   const ConfirmOrderPage({super.key});
@@ -92,7 +92,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   Future<void> _sendVnpayCallback(Map<String, String> params) async {
     try {
       final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/vnpay-callback',
+        'https://chickenkitchen.milize-lena.space/api/payments/vnpay/callback',
       );
       final headers = await AuthService().authHeaders();
       if (headers.isEmpty || !headers.containsKey('Authorization')) {
@@ -305,7 +305,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: selected
-                                  ? const Color(0xFF86C144)
+                                  ? const Color(0xFFB71C1C)
                                   : Colors.black12,
                             ),
                           ),
@@ -336,7 +336,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
                               if (selected)
                                 const Icon(
                                   Icons.check_circle,
-                                  color: Color(0xFF86C144),
+                                  color: Color(0xFFB71C1C),
                                 )
                               else
                                 const Icon(Icons.chevron_right),
@@ -401,7 +401,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         builder: (ctx) {
-          const primary = Color(0xFF86C144);
+          const primary = Color(0xFFB71C1C);
           return SafeArea(
             top: false,
             child: Padding(
@@ -586,7 +586,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
       appBar: AppBar(
@@ -1109,7 +1109,7 @@ class _ConfirmOrderPageState extends State<ConfirmOrderPage> {
   }
 
   Future<void> _onConfirm(Map<String, dynamic>? order) async {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     if (order == null) {
       ScaffoldMessenger.of(
         context,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobiletest/models/KitchenOrder.dart';
+import 'package:mobiletest/features/orders/domain/KitchenOrder.dart';
 
 class OrderDetailPage extends StatefulWidget {
   final KitchenOrder order;

@@ -1,5 +1,5 @@
 // import 'package:flutter/material.dart';
-// import 'package:mobiletest/services/auth_service.dart';
+// import 'package:mobiletest/features/auth/data/auth_service.dart';
 // import 'package:mobiletest/screen/login_screen.dart';
 
 // class SuccessScreen extends StatelessWidget {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:mobiletest/screen/StorePickerPage.dart';
-import 'package:mobiletest/screen/EmployeePage.dart';
-import 'package:mobiletest/services/auth_service.dart';
+import 'package:mobiletest/features/restaurants/presentation/StorePickerPage.dart';
+import 'package:mobiletest/features/employee/presentation/EmployeePage.dart';
+import 'package:mobiletest/features/menu/presentation/BuildDishWizardPage.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
 
 class SignInWidget extends StatefulWidget {
   const SignInWidget({super.key});
@@ -38,10 +39,26 @@ class _SignInWidgetState extends State<SignInWidget> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Đăng nhập thành công')));
 
+      // Decode role from access token and redirect accordingly
+      final claims = _auth.decodeAccessTokenClaims(tokens.accessToken);
+      final role = (claims?['role'] as String?)?.toUpperCase();
+
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const StorePickerPage()),
-      );
+      if (role == 'EMPLOYEE') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const EmployeePage()),
+        );
+      } else if (role == 'STORE') {
+        // Redirect to in-store ordering flow (build dish)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const BuildDishWizardPage()),
+        );
+      } else {
+        // Default user flow: select store then continue
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const StorePickerPage()),
+        );
+      }
     } catch (e) {
       setState(() {
         _loading = false;
@@ -200,26 +217,7 @@ class _SignInWidgetState extends State<SignInWidget> {
                                       ],
                                     ),
                                     
-                                    // 
-                                    const SizedBox(height: 12),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: TextButton(
-                                        onPressed: () {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                                builder: (_) => const EmployeePage()),
-                                          );
-                                        },
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                          padding: const EdgeInsets.symmetric(vertical: 14),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                                        ),
-                                        child: const Text('Employee area'),
-                                      ),
-                                    ),
-  //
+                                    // Removed Employee area button
 
                                     if (_error != null) ...[
                                       const SizedBox(height: 16),

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/services/store_service.dart';
-import 'package:mobiletest/screen/HomePage.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
 
 class StorePickerPage extends StatefulWidget {
   const StorePickerPage({super.key});

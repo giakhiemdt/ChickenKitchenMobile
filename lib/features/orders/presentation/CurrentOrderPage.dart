@@ -3,11 +3,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobiletest/screen/BuildDishWizardPage.dart';
-import 'package:mobiletest/services/auth_service.dart';
-import 'package:mobiletest/services/store_service.dart';
-import 'package:mobiletest/services/cart_events.dart';
-import 'package:mobiletest/screen/ConfirmOrderPage.dart';
+import 'package:mobiletest/features/menu/presentation/BuildDishWizardPage.dart';
+import 'package:mobiletest/features/auth/data/auth_service.dart';
+import 'package:mobiletest/core/services/http_guard.dart';
+import 'package:mobiletest/features/store/data/store_service.dart';
+import 'package:mobiletest/features/orders/data/cart_events.dart';
+import 'package:mobiletest/features/orders/presentation/ConfirmOrderPage.dart';
 
 class CurrentOrderPage extends StatefulWidget {
   const CurrentOrderPage({super.key});
@@ -44,6 +45,7 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
       uri,
       headers: headers.isEmpty ? {'Accept': 'application/json'} : headers,
     );
+    if (await HttpGuard.handleUnauthorized(context, resp)) return null;
     if (resp.statusCode != 200) {
       throw Exception('HTTP ${resp.statusCode}');
     }
@@ -71,6 +73,7 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
         'https://chickenkitchen.milize-lena.space/api/orders/dishes/$dishId',
       );
       final resp = await http.delete(uri, headers: headers);
+      if (await HttpGuard.handleUnauthorized(context, resp)) return false;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         return true;
       } else {
@@ -107,13 +110,14 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
   }
 
   Widget _itemCard(Map<String, dynamic> it, String stepName) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     final name = it['menuItemName'] as String? ?? 'Item';
     final price = (it['price'] ?? 0) as int;
     final cal = (it['cal'] ?? 0) as int;
     final qty = (it['quantity'] ?? 1) as int;
-    final imageUrl =
-        'https://images.unsplash.com/photo-1543353071-10c8ba85a904?w=800';
+    final imageUrl = (it['imageUrl'] as String?)?.isNotEmpty == true
+        ? it['imageUrl'] as String
+        : 'https://images.unsplash.com/photo-1543353071-10c8ba85a904?w=800';
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -129,10 +133,13 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
             child: SizedBox(
               width: 90,
               height: 70,
-              child: FittedBox(
+              child: Image.network(
+                imageUrl,
                 fit: BoxFit.cover,
-                clipBehavior: Clip.hardEdge,
-                child: Image.network(imageUrl),
+                errorBuilder: (_, __, ___) => Image.network(
+                  'https://images.unsplash.com/photo-1543353071-10c8ba85a904?w=800',
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -218,7 +225,7 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Cart'),
@@ -231,6 +238,9 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
               _editMode = !_editMode;
               if (!_editMode) _selected.clear();
             }),
+            style: TextButton.styleFrom(
+              foregroundColor: primary,
+            ),
             child: Text(_editMode ? 'Cancel' : 'Edit'),
           ),
         ],
@@ -343,6 +353,14 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                                 });
                                 return;
                               }
+                              // Only allow editing if dish is custom
+                              final isCustom = (d['isCustom'] as bool?) ?? false;
+                              if (!isCustom) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Only custom dishes can be edited.')),
+                                );
+                                return;
+                              }
                               // Build initial selections from current dish
                               final Map<int, Map<int, int>> initial = {};
                               for (final s in steps) {
@@ -411,7 +429,9 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                'Dish #$dishId',
+                                                (d['name'] as String?)?.isNotEmpty == true
+                                                    ? d['name'] as String
+                                                    : 'Dish #$dishId',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w700,
                                                   fontSize: 16,
@@ -634,7 +654,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF86C144);
+    const primary = Color(0xFFB71C1C);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
