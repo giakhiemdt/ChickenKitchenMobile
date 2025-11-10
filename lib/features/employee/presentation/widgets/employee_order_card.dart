@@ -146,7 +146,7 @@ class EmployeeOrderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Dishes with inner scrolling; fixed height area
+          // Dishes with full step breakdown
           if (order.dishes.isNotEmpty)
             Expanded(
               child: ClipRRect(
@@ -159,58 +159,170 @@ class EmployeeOrderCard extends StatelessWidget {
                     itemCount: order.dishes.length,
                     itemBuilder: (context, i) {
                       final d = order.dishes[i];
-                      final title = (d.name.isNotEmpty
+                      final dishTitle =
+                          (d.name.isNotEmpty
                               ? d.name
                               : (d.note.isNotEmpty ? d.note : 'Dish #${d.dishId}')) +
                           (d.isCustom ? ' (custom)' : '');
-                      // Gộp toàn bộ item từ các step và hiển thị dạng hàng: ảnh + tên (trái), số lượng (phải)
-                      final allItems = [
-                        for (final st in d.steps) ...st.items,
-                      ];
                       return Theme(
                         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                         child: ExpansionTile(
                           tilePadding: const EdgeInsets.symmetric(horizontal: 8),
-                          childrenPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                          title: Text(title,
+                          childrenPadding: const EdgeInsets.only(
+                            left: 8,
+                            right: 8,
+                            bottom: 12,
+                          ),
+                          title: Text(
+                            dishTitle,
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
                           subtitle: Text('${_formatCurrency(d.price)} • ${d.cal} cal',
                               style: const TextStyle(fontSize: 11, color: Colors.black54)),
                           children: [
-                            for (final it in allItems)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                            for (int si = 0; si < d.steps.length; si++) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.black12),
+                                ),
                                 child: Row(
                                   children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Image.network(
-                                        (it.imageUrl.isNotEmpty ? it.imageUrl : _fallbackItemImage),
-                                        width: 36,
-                                        height: 36,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Image.asset(
-                                          'assets/images/Logo.png',
-                                          width: 36,
-                                          height: 36,
-                                          fit: BoxFit.cover,
+                                    // step order number
+                                    CircleAvatar(
+                                      radius: 11,
+                                      backgroundColor: _stepColor(
+                                        si,
+                                        d.steps[si].stepName,
+                                      ).withOpacity(.15),
+                                      child: Text(
+                                        '${si + 1}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: _stepColor(
+                                            si,
+                                            d.steps[si].stepName,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // semantic icon per step
+                                    Container(
+                                      padding: const EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        color: _stepColor(
+                                          si,
+                                          d.steps[si].stepName,
+                                        ).withOpacity(.10),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        _stepIcon(d.steps[si].stepName, si),
+                                        size: 16,
+                                        color: _stepColor(
+                                          si,
+                                          d.steps[si].stepName,
                                         ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
+                                    // step name label
                                     Expanded(
                                       child: Text(
-                                        it.menuItemName,
+                                        d.steps[si].stepName,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: _stepColor(
+                                            si,
+                                            d.steps[si].stepName,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    Text('x${it.quantity}',
-                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${d.steps[si].items.length} item(s)',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.black54,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                    ),
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 4),
+                              ...d.steps[si].items.map(
+                                (it) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6.0,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Image.network(
+                                          (it.imageUrl.isNotEmpty
+                                              ? it.imageUrl
+                                              : _fallbackItemImage),
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              Image.asset(
+                                                'assets/images/Logo.png',
+                                                width: 40,
+                                                height: 40,
+                                                fit: BoxFit.cover,
+                                              ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              it.menuItemName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${_formatCurrency(it.price)} • ${it.cal} cal',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.black54,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        'x${it.quantity}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ],
                         ),
                       );
@@ -268,6 +380,64 @@ class EmployeeOrderCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: card,
     );
+  }
+
+  Color _stepColor(int index, String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('prep') || lower.contains('chuẩn')) {
+      return Colors.blue.shade700;
+    } else if (lower.contains('cook') || lower.contains('nấu')) {
+      return Colors.orange.shade700;
+    } else if (lower.contains('grill') ||
+        lower.contains('chiên') ||
+        lower.contains('rán')) {
+      return Colors.red.shade600;
+    } else if (lower.contains('pack') || lower.contains('đóng')) {
+      return Colors.purple.shade700;
+    } else if (lower.contains('serve') ||
+        lower.contains('phục') ||
+        lower.contains('finish') ||
+        lower.contains('xong')) {
+      return Colors.green.shade700;
+    }
+    final palette = [
+      Colors.indigo.shade600,
+      Colors.cyan.shade700,
+      Colors.deepOrange.shade600,
+      Colors.deepPurple.shade600,
+      Colors.teal.shade700,
+    ];
+    return palette[index % palette.length];
+  }
+
+  IconData _stepIcon(String name, int index) {
+    final lower = name.toLowerCase();
+    if (lower.contains('prep') || lower.contains('chuẩn'))
+      return Icons.build_outlined;
+    if (lower.contains('cook') || lower.contains('nấu'))
+      return Icons.local_fire_department_outlined;
+    if (lower.contains('grill') ||
+        lower.contains('chiên') ||
+        lower.contains('rán'))
+      return Icons.outdoor_grill_outlined;
+    if (lower.contains('mix') || lower.contains('trộn'))
+      return Icons.restaurant_outlined;
+    if (lower.contains('pack') || lower.contains('đóng'))
+      return Icons.inventory_2_outlined;
+    if (lower.contains('serve') || lower.contains('phục'))
+      return Icons.room_service_outlined;
+    if (lower.contains('finish') ||
+        lower.contains('xong') ||
+        lower.contains('done'))
+      return Icons.check_circle_outline;
+    const seq = [
+      Icons.layers_outlined,
+      Icons.tune_outlined,
+      Icons.timelapse_outlined,
+      Icons.assignment_turned_in_outlined,
+      Icons.flag_outlined,
+    ];
+    return seq[index % seq.length];
   }
 
   String _formatCurrency(num n) {
