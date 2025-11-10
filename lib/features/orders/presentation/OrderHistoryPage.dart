@@ -27,6 +27,8 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
   String _selectedDateRange = 'ALL'; // ALL, TODAY, WEEK
   String _sortMode = 'NEWEST'; // NEWEST or OLDEST
   bool _cancelling = false;
+  int? _feedbackSendingOrderId; // orderId currently sending feedback
+  final Map<int, _FeedbackResult> _feedbackCache = {}; // orderId -> feedback
   final TextEditingController _searchCtrl = TextEditingController();
 
   @override
@@ -277,6 +279,8 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                             cancelled: cancelled,
                           ),
                           const SizedBox(height: 10),
+                          if (status == 'COMPLETED' || status == 'DELIVERED')
+                            _buildFeedbackDisplay(orderId as int),
                           if (_canCancel(status))
                             SizedBox(
                               width: double.infinity,
@@ -296,6 +300,31 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
                                 ),
                               ),
                             ),
+                          if ((status == 'COMPLETED' ||
+                                  status == 'DELIVERED') &&
+                              _feedbackCache.containsKey(orderId) &&
+                              !_hasFeedback(orderId as int)) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: _feedbackSendingOrderId == orderId
+                                    ? null
+                                    : () => _promptFeedback(orderId),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFB71C1C),
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size.fromHeight(42),
+                                ),
+                                icon: const Icon(Icons.rate_review_outlined),
+                                label: Text(
+                                  _feedbackSendingOrderId == orderId
+                                      ? 'Sending feedback…'
+                                      : 'Rate this order',
+                                ),
+                              ),
+                            ),
+                          ],
                                 ],
                               ),
                             ),
@@ -600,6 +629,230 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
     }
   }
 
+  Future<void> _promptFeedback(int orderId) async {
+    int rating = 0; // 0 = not selected
+    final msgCtrl = TextEditingController();
+    final result = await showDialog<_FeedbackResult>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocalState) {
+            Widget buildStar(int value) {
+              final filled = rating >= value;
+              return GestureDetector(
+                onTap: () => setLocalState(() => rating = value),
+                child: Icon(
+                  filled ? Icons.star : Icons.star_border,
+                  size: 30,
+                  color: filled ? const Color(0xFFB71C1C) : Colors.black26,
+                ),
+              );
+            }
+
+            return AlertDialog(
+              title: const Text('Rate Order'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [for (int v = 1; v <= 5; v++) buildStar(v)],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: msgCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Message (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFB71C1C),
+                  ),
+                  child: const Text('Close'),
+                ),
+                ElevatedButton(
+                  onPressed: rating == 0
+                      ? null
+                      : () => Navigator.of(ctx).pop(
+                          _FeedbackResult(
+                            rating: rating,
+                            message: msgCtrl.text.trim(),
+                          ),
+                        ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB71C1C),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (result == null) return;
+    await _sendFeedback(orderId, result.rating, result.message);
+  }
+
+  Future<void> _sendFeedback(int orderId, int rating, String message) async {
+    try {
+      setState(() => _feedbackSendingOrderId = orderId);
+      final headers = await AuthService().authHeaders();
+      if (headers.isEmpty || !headers.containsKey('Authorization')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Missing token')));
+        setState(() => _feedbackSendingOrderId = null);
+        return;
+      }
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/$orderId/feedback',
+      );
+      final body = jsonEncode(<String, dynamic>{
+        'rating': rating,
+        'message': message,
+      });
+      final resp = await http.post(uri, headers: headers, body: body);
+      if (!mounted) return;
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thank you for your feedback!')),
+        );
+        // Reload orders (as requested) then fetch and cache feedback for this order
+        await _fetch();
+        await _fetchFeedbackSingle(orderId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Feedback failed: HTTP ${resp.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error sending feedback: $e')));
+    } finally {
+      if (mounted) setState(() => _feedbackSendingOrderId = null);
+    }
+  }
+
+  Widget _buildFeedbackDisplay(int orderId) {
+    final feedback = _feedbackCache[orderId];
+    // Lazy load if missing
+    if (feedback == null) {
+      // Trigger fetch without rebuilding infinitely
+      Future.microtask(() async {
+        await _fetchFeedbackSingle(orderId);
+      });
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 8.0),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Loading feedback…',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+        ),
+      );
+    }
+    // If fetched but no feedback, show nothing
+    if (feedback.rating == 0 && feedback.message.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (int i = 1; i <= 5; i++)
+                Icon(
+                  i <= feedback.rating ? Icons.star : Icons.star_border,
+                  size: 18,
+                  color: const Color(0xFFB71C1C),
+                ),
+              const SizedBox(width: 8),
+              Text(
+                '${feedback.rating}/5',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          if (feedback.message.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              feedback.message,
+              style: const TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _fetchFeedbackSingle(int orderId) async {
+    try {
+      final headers = await AuthService().authHeaders();
+      if (headers.isEmpty || !headers.containsKey('Authorization')) return;
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/$orderId/feedback',
+      );
+      final resp = await http.get(uri, headers: headers);
+      int rating = 0;
+      String message = '';
+      if (resp.statusCode == 200) {
+        final json = jsonDecode(resp.body) as Map<String, dynamic>;
+        final data = json['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          rating = (data['rating'] as num?)?.toInt() ?? 0;
+          message = (data['message'] as String?)?.trim() ?? '';
+        }
+      } else {
+        // Treat non-200 as no feedback so UI can decide to show Rate button
+        rating = 0;
+        message = '';
+      }
+      if (!mounted) return;
+      setState(() {
+        _feedbackCache[orderId] = _FeedbackResult(
+          rating: rating,
+          message: message,
+        );
+      });
+    } catch (_) {
+      // On error, mark as no feedback so the button can appear instead of spinner
+      if (!mounted) return;
+      setState(() {
+        _feedbackCache[orderId] = const _FeedbackResult(rating: 0, message: '');
+      });
+    }
+  }
+
   Widget get bottomNavigationBar => AppBottomNav(
         currentIndex: 3,
         onTap: (i) {
@@ -695,6 +948,11 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
       return iso;
     }
   }
+
+  bool _hasFeedback(int orderId) {
+    final fb = _feedbackCache[orderId];
+    return fb != null && fb.rating > 0;
+  }
 }
 
 class _MiniProgress extends StatelessWidget {
@@ -758,4 +1016,10 @@ class _StepVM {
   _StepVM(this.title, {this.done = false});
 
   _StepVM copyWith({bool? done}) => _StepVM(title, done: done ?? this.done);
+}
+
+class _FeedbackResult {
+  final int rating;
+  final String message;
+  const _FeedbackResult({required this.rating, required this.message});
 }

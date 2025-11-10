@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobiletest/features/auth/data/auth_service.dart';
-import 'package:mobiletest/features/auth/presentation/SignInWidget.dart';
 import 'package:mobiletest/features/employee/domain/employee_models.dart';
 
 class EmployeeSidebar extends StatelessWidget {
@@ -138,18 +136,14 @@ class EmployeeSidebar extends StatelessWidget {
               ),
             ),
           ),
-          // Bottom fixed employee panel + logout
+          // Bottom fixed employee panel (logout moved to top bar per request)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (employee != null) ...[
-                  Row(
+            child: (employee != null)
+                ? Row(
                     children: [
                       const CircleAvatar(radius: 16, child: Icon(Icons.person, size: 16)),
                       const SizedBox(width: 8),
@@ -167,52 +161,8 @@ class EmployeeSidebar extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Đăng xuất'),
-                          content: const Text('Bạn có chắc muốn đăng xuất?'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-                            ElevatedButton(
-                              onPressed: () async {
-                                Navigator.pop(context);
-                                final auth = AuthService();
-                                await auth.logout();
-                                if (!context.mounted) return;
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (_) => const SignInWidget()),
-                                  (route) => false,
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFB71C1C),
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Đăng xuất'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.logout, size: 18),
-                    label: const Text('Log out'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB71C1C),
-                      side: const BorderSide(color: Color(0xFFB71C1C)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),

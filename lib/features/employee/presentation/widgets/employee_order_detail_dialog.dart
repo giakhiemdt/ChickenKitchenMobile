@@ -1,19 +1,39 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobiletest/features/auth/data/auth_service.dart';
 import 'package:mobiletest/features/employee/domain/employee_models.dart';
 
-class EmployeeOrderDetailDialog extends StatelessWidget {
+class EmployeeOrderDetailDialog extends StatefulWidget {
   final EmployeeOrderSummary order;
   const EmployeeOrderDetailDialog({super.key, required this.order});
+
+  @override
+  State<EmployeeOrderDetailDialog> createState() =>
+      _EmployeeOrderDetailDialogState();
+}
+
+class _EmployeeOrderDetailDialogState extends State<EmployeeOrderDetailDialog> {
+  bool _feedbackLoading = false;
+  int _feedbackRating = 0;
+  String _feedbackMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isFeedbackStatus(widget.order.status)) {
+      _fetchFeedback();
+    }
+  }
 
   static const String _fallbackItemImage =
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=400&auto=format&fit=crop';
 
-  static const String _fallbackIngredientImage =
-      'https://images.unsplash.com/photo-1512621776951-5f5b6f8a3e38?q=80&w=400&auto=format&fit=crop';
+  // Removed unused _fallbackIngredientImage to satisfy linter.
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(order.status);
+    final statusColor = _statusColor(widget.order.status);
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
@@ -32,10 +52,12 @@ class EmployeeOrderDetailDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Order #${order.orderId}',
+                        Text(
+                          'Order #${widget.order.orderId}',
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                         const SizedBox(height: 4),
-                        Text(order.customerName ?? 'Khách vãng lai',
+                        Text(
+                          widget.order.customerName ?? 'Khách vãng lai',
                             style: const TextStyle(color: Colors.black54)),
                       ],
                     ),
@@ -46,7 +68,13 @@ class EmployeeOrderDetailDialog extends StatelessWidget {
                       color: statusColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(order.status, style: TextStyle(color: statusColor, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      widget.order.status,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -54,9 +82,9 @@ class EmployeeOrderDetailDialog extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(12),
-                itemCount: order.dishes.length,
+                itemCount: widget.order.dishes.length,
                 itemBuilder: (context, i) {
-                  final d = order.dishes[i];
+                  final d = widget.order.dishes[i];
                   final dishTitle = d.name.isNotEmpty
                       ? d.name
                       : 'Dish #${d.dishId}';
@@ -350,12 +378,89 @@ class EmployeeOrderDetailDialog extends StatelessWidget {
                 },
               ),
             ),
+            if (_isFeedbackStatus(widget.order.status))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(height: 1),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Customer feedback',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 6),
+                    if (_feedbackLoading)
+                      Row(
+                        children: const [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Loading feedback…',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (_feedbackRating <= 0 && _feedbackMessage.isEmpty)
+                      const Text(
+                        'No customer feedback',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.black45,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      )
+                    else ...[
+                      Row(
+                        children: [
+                          for (int i = 1; i <= 5; i++)
+                            Icon(
+                              i <= _feedbackRating
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              size: 16,
+                              color: const Color(0xFFB71C1C),
+                            ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${_feedbackRating}/5',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_feedbackMessage.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _feedbackMessage,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black87,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Tổng: ${_formatCurrency(order.totalPrice)}',
+                  Text(
+                    'Tổng: ${_formatCurrency(widget.order.totalPrice)}',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                   TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
                 ],
@@ -455,5 +560,53 @@ class EmployeeOrderDetailDialog extends StatelessWidget {
       if (idx > 1 && idx % 3 == 1) buf.write(',');
     }
     return '${buf.toString()} ₫';
+  }
+
+  bool _isFeedbackStatus(String status) {
+    final s = status.toUpperCase();
+    return s == 'COMPLETED' || s == 'DELIVERED';
+  }
+
+  Future<void> _fetchFeedback() async {
+    try {
+      setState(() => _feedbackLoading = true);
+      final headers = await AuthService().authHeaders();
+      if (headers.isEmpty || !headers.containsKey('Authorization')) {
+        setState(() {
+          _feedbackRating = 0;
+          _feedbackMessage = '';
+        });
+        return;
+      }
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/${widget.order.orderId}/feedback',
+      );
+      final resp = await http.get(uri, headers: headers);
+      if (resp.statusCode == 200) {
+        final json = jsonDecode(resp.body) as Map<String, dynamic>;
+        final data = json['data'] as Map<String, dynamic>?;
+        final rating = (data?['rating'] as num?)?.toInt() ?? 0;
+        final message = (data?['message'] as String?)?.trim() ?? '';
+        if (!mounted) return;
+        setState(() {
+          _feedbackRating = rating;
+          _feedbackMessage = message;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _feedbackRating = 0;
+          _feedbackMessage = '';
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _feedbackRating = 0;
+        _feedbackMessage = '';
+      });
+    } finally {
+      if (mounted) setState(() => _feedbackLoading = false);
+    }
   }
 }

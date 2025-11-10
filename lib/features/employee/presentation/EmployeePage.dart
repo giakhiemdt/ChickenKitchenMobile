@@ -653,6 +653,49 @@ class _EmployeePageState extends State<EmployeePage> {
           Expanded(
             child: Column(
               children: [
+                // Top utility bar with logout (moved up for tablet reachability)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFE0E0E0)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _selectedTab == 'orders'
+                              ? 'Kitchen Display'
+                              : 'Order History',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      // Logout button elevated higher per user request
+                      SizedBox(
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          onPressed: _confirmLogout,
+                          icon: const Icon(Icons.logout, size: 18),
+                          label: const Text('Logout'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFB71C1C),
+                            side: const BorderSide(color: Color(0xFFB71C1C)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // Status bar (calls API by status)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -916,105 +959,47 @@ class _EmployeePageState extends State<EmployeePage> {
               ],
             ),
           ),
-          // Employee Info & Logout
+          // Employee Info (logout moved to top bar)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: const Color(0xFFB71C1C).withOpacity(0.1),
-                      child: const Icon(
-                        Icons.person,
-                        color: Color(0xFFB71C1C),
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _employee?.userFullName ?? 'Nhân viên',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            _employee?.storeName ?? '',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                CircleAvatar(
+                  backgroundColor: const Color(0xFFB71C1C).withOpacity(0.1),
+                  child: const Icon(
+                    Icons.person,
+                    color: Color(0xFFB71C1C),
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      // Show logout confirmation
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Đăng xuất'),
-                          content: const Text('Bạn có chắc muốn đăng xuất?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Hủy'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () async {
-                                // Close dialog first
-                                Navigator.pop(context);
-                                // Clean auth storage (Firebase + tokens)
-                                final auth = AuthService();
-                                await auth.logout();
-                                // Navigate to SignIn and clear back stack
-                                if (!mounted) return;
-                                {
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(
-                                      builder: (_) => const SignInWidget(),
-                                    ),
-                                    (route) => false,
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFB71C1C),
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Đăng xuất'),
-                            ),
-                          ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _employee?.userFullName ?? 'Nhân viên',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.logout, size: 18),
-                    label: const Text('Log out'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFB71C1C),
-                      side: const BorderSide(color: Color(0xFFB71C1C)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _employee?.storeName ?? '',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1163,6 +1148,39 @@ class _EmployeePageState extends State<EmployeePage> {
             },
             tooltip: 'Làm mới',
             color: const Color(0xFFB71C1C),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn có chắc muốn đăng xuất?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final auth = AuthService();
+              await auth.logout();
+              if (!mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const SignInWidget()),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB71C1C),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Đăng xuất'),
           ),
         ],
       ),
