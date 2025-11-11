@@ -762,39 +762,14 @@ class _EmployeePageState extends State<EmployeePage> {
                                     )
                                   : Column(
                                       children: [
-                                        // Grid of vertical rectangular cards
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(16.0),
-                                            child: GridView.builder(
-                                              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                                                maxCrossAxisExtent: 360, // slightly wider cards
-                                                mainAxisSpacing: 12,
-                                                crossAxisSpacing: 12,
-                                                childAspectRatio: 0.66, // a bit taller for bottom actions
-                                              ),
-                                              itemCount: _apiOrders.length,
-                                              itemBuilder: (context, i) => EmployeeOrderCard(
-                                                order: _apiOrders[i],
-                                                onTap: () => _openOrderDetail(_apiOrders[i]),
-                                                onAccept: () {
-                                                  final o = _apiOrders[i];
-                                                  if (o.status == 'PROCESSING') {
-                                                    _readyOrder(o.orderId);
-                                                  } else if (o.status == 'READY') {
-                                                    _completeOrder(o.orderId);
-                                                  } else {
-                                                    _acceptOrder(o.orderId);
-                                                  }
-                                                },
-                                                onCancel: () => _cancelOrder(_apiOrders[i].orderId),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Pagination controls
+                            // Pagination controls (moved above grid for easier reach)
                                         Padding(
-                                          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+                              padding: const EdgeInsets.only(
+                                left: 16,
+                                right: 16,
+                                top: 12,
+                                bottom: 8,
+                              ),
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
@@ -807,6 +782,11 @@ class _EmployeePageState extends State<EmployeePage> {
                                                         : null,
                                                     icon: const Icon(Icons.chevron_left),
                                                     label: const Text('Trước'),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(
+                                            0xFFB71C1C,
+                                          ),
+                                        ),
                                                   ),
                                                   const SizedBox(width: 8),
                                                   TextButton(
@@ -820,12 +800,53 @@ class _EmployeePageState extends State<EmployeePage> {
                                                         Icon(Icons.chevron_right),
                                                       ],
                                                     ),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(
+                                            0xFFB71C1C,
+                                          ),
+                                        ),
                                                   ),
                                                 ],
                                               ),
                                             ],
                                           ),
                                         ),
+                            // Grid of vertical rectangular cards
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: GridView.builder(
+                                  gridDelegate:
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                        maxCrossAxisExtent:
+                                            360, // slightly wider cards
+                                        mainAxisSpacing: 12,
+                                        crossAxisSpacing: 12,
+                                        childAspectRatio:
+                                            0.66, // a bit taller for bottom actions
+                                      ),
+                                  itemCount: _apiOrders.length,
+                                  itemBuilder: (context, i) =>
+                                      EmployeeOrderCard(
+                                        order: _apiOrders[i],
+                                        onTap: () =>
+                                            _openOrderDetail(_apiOrders[i]),
+                                        onAccept: () {
+                                          final o = _apiOrders[i];
+                                          if (o.status == 'PROCESSING') {
+                                            _readyOrder(o.orderId);
+                                          } else if (o.status == 'READY') {
+                                            _completeOrder(o.orderId);
+                                          } else {
+                                            _acceptOrder(o.orderId);
+                                          }
+                                        },
+                                        onCancel: () =>
+                                            _cancelOrder(_apiOrders[i].orderId),
+                                      ),
+                                ),
+                              ),
+                            ),
                                       ],
                                     ),
                 ),

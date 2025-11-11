@@ -1,7 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:mobiletest/features/auth/data/auth_service.dart';
 import 'package:mobiletest/features/employee/domain/employee_models.dart';
 import 'package:mobiletest/features/employee/presentation/widgets/time_display.dart';
 
@@ -28,8 +25,7 @@ class EmployeeOrderCard extends StatelessWidget {
   static const String _fallbackItemImage =
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=400&auto=format&fit=crop';
 
-  // Simple in-memory feedback cache to avoid refetching repeatedly per rebuild.
-  static final Map<int, _FeedbackData?> _feedbackCache = {};
+  // Feedback UI removed from list cards; feedback is shown only in detail dialog.
 
   Color _statusColor(String s) {
     switch (s) {
@@ -151,76 +147,7 @@ class EmployeeOrderCard extends StatelessWidget {
               ),
             ],
           ),
-          // Read-only customer feedback (only for completed / delivered)
-          if (_isFeedbackStatus(order.status)) ...[
-            const SizedBox(height: 8),
-            FutureBuilder<_FeedbackData?>(
-              future: _loadFeedback(order.orderId),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return Row(
-                    children: const [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Loading feedback…',
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
-                      ),
-                    ],
-                  );
-                }
-                final data = snap.data;
-                if (data == null || data.rating <= 0) {
-                  return const Text(
-                    'No customer feedback',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.black45,
-                    ),
-                  );
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        for (int i = 1; i <= 5; i++)
-                          Icon(
-                            i <= data.rating ? Icons.star : Icons.star_border,
-                            size: 16,
-                            color: const Color(0xFFB71C1C),
-                          ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${data.rating}/5',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (data.message.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        data.message,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.black87,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ],
+          // Feedback intentionally not shown here to avoid repeated fetching and list clutter.
           const SizedBox(height: 8),
           // Dishes with full step breakdown
           if (order.dishes.isNotEmpty)
@@ -459,45 +386,7 @@ class EmployeeOrderCard extends StatelessWidget {
     );
   }
 
-  bool _isFeedbackStatus(String status) {
-    final s = status.toUpperCase();
-    return s == 'COMPLETED' || s == 'DELIVERED';
-  }
-
-  Future<_FeedbackData?> _loadFeedback(int orderId) async {
-    if (_feedbackCache.containsKey(orderId)) {
-      return _feedbackCache[orderId];
-    }
-    try {
-      final headers = await AuthService().authHeaders();
-      if (headers.isEmpty || !headers.containsKey('Authorization')) {
-        _feedbackCache[orderId] = null;
-        return null;
-      }
-      final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/$orderId/feedback',
-      );
-      final resp = await http.get(uri, headers: headers);
-      if (resp.statusCode != 200) {
-        _feedbackCache[orderId] = null;
-        return null;
-      }
-      final json = jsonDecode(resp.body) as Map<String, dynamic>;
-      final data = json['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        _feedbackCache[orderId] = null;
-        return null;
-      }
-      final rating = (data['rating'] as num?)?.toInt() ?? 0;
-      final message = (data['message'] as String?)?.trim() ?? '';
-      final result = _FeedbackData(rating: rating, message: message);
-      _feedbackCache[orderId] = result;
-      return result;
-    } catch (_) {
-      _feedbackCache[orderId] = null;
-      return null;
-    }
-  }
+  
 
   Color _stepColor(int index, String name) {
     final lower = name.toLowerCase();
@@ -569,8 +458,4 @@ class EmployeeOrderCard extends StatelessWidget {
   }
 }
 
-class _FeedbackData {
-  final int rating;
-  final String message;
-  const _FeedbackData({required this.rating, required this.message});
-}
+ 
