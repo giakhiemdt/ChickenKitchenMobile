@@ -1,3 +1,4 @@
+// ignore_for_file: unused_element, unused_field
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,6 +31,8 @@ class _EmployeePageState extends State<EmployeePage> {
   String? _error;
   Timer? _refreshTimer;
   Timer? _clockTimer;
+  // Track status update in progress per order
+  final Map<int, bool> _updatingStatus = <int, bool>{};
   
   OrderTypeFilter _typeFilter = OrderTypeFilter.all;
   OrderStatusFilter _statusFilter = OrderStatusFilter.all;
@@ -209,104 +212,70 @@ class _EmployeePageState extends State<EmployeePage> {
     );
   }
 
-  Future<void> _acceptOrder(int orderId) async {
+  Future<void> _changeOrderStatus(int orderId, String endpoint, String newStatus, {bool removeWhenDone = false}) async {
+    if (_updatingStatus[orderId] == true) return;
+    setState(() { _updatingStatus[orderId] = true; });
+    final idx = _apiOrders.indexWhere((o) => o.orderId == orderId);
+    EmployeeOrderSummary? previous;
+    if (idx != -1) {
+      previous = _apiOrders[idx];
+      _apiOrders[idx] = EmployeeOrderSummary(
+        orderId: previous.orderId,
+        status: newStatus,
+        totalPrice: previous.totalPrice,
+        createdAt: previous.createdAt,
+        pickupTime: previous.pickupTime,
+        customerName: previous.customerName,
+        customerImageUrl: previous.customerImageUrl,
+        itemsCount: previous.itemsCount,
+        dishes: previous.dishes,
+      );
+    }
     try {
       final headers = await AuthService().authHeaders();
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/employee/accept/$orderId');
+      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/employee/$endpoint/$orderId');
       final resp = await http.post(uri, headers: {
         ...headers,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-      });
+      }).timeout(const Duration(seconds: 8));
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         throw Exception('HTTP ${resp.statusCode}');
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã nhận đơn #$orderId')),
+        SnackBar(content: Text('Đơn #$orderId -> $newStatus')),
       );
-      _fetchOrdersByStatus(_selectedApiStatus, pageNumber: _pageNumber);
+      if (removeWhenDone) {
+        setState(() { _apiOrders.removeWhere((o) => o.orderId == orderId); });
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi nhận đơn: $e')),
-      );
+      if (previous != null && mounted) {
+        setState(() { _apiOrders[idx] = previous!; });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi cập nhật #$orderId: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() { _updatingStatus[orderId] = false; });
     }
   }
 
-  Future<void> _cancelOrder(int orderId) async {
-    try {
-      final headers = await AuthService().authHeaders();
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/employee/cancel/$orderId');
-      final resp = await http.post(uri, headers: {
-        ...headers,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      });
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw Exception('HTTP ${resp.statusCode}');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã hủy đơn #$orderId')),
-      );
-      _fetchOrdersByStatus(_selectedApiStatus, pageNumber: _pageNumber);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi hủy đơn: $e')),
-      );
+  void _advanceOrder(EmployeeOrderSummary o) {
+    final s = o.status.toUpperCase();
+    if (s == 'CONFIRMED') {
+      _changeOrderStatus(o.orderId, 'accept', 'PROCESSING');
+    } else if (s == 'PROCESSING') {
+      _changeOrderStatus(o.orderId, 'ready', 'READY');
+    } else if (s == 'READY') {
+      _changeOrderStatus(o.orderId, 'complete', 'COMPLETED', removeWhenDone: true);
     }
   }
 
-  Future<void> _readyOrder(int orderId) async {
-    try {
-      final headers = await AuthService().authHeaders();
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/employee/ready/$orderId');
-      final resp = await http.post(uri, headers: {
-        ...headers,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      });
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw Exception('HTTP ${resp.statusCode}');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã chuyển đơn #$orderId sang READY')),
-      );
-      _fetchOrdersByStatus(_selectedApiStatus, pageNumber: _pageNumber);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi cập nhật READY: $e')),
-      );
-    }
-  }
-
-  Future<void> _completeOrder(int orderId) async {
-    try {
-      final headers = await AuthService().authHeaders();
-      final uri = Uri.parse('https://chickenkitchen.milize-lena.space/api/orders/employee/complete/$orderId');
-      final resp = await http.post(uri, headers: {
-        ...headers,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      });
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw Exception('HTTP ${resp.statusCode}');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã hoàn tất đơn #$orderId')),
-      );
-      _fetchOrdersByStatus(_selectedApiStatus, pageNumber: _pageNumber);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi hoàn tất đơn: $e')),
-      );
-    }
+  void _cancelOrder(EmployeeOrderSummary o) {
+    _changeOrderStatus(o.orderId, 'cancel', 'CANCELLED', removeWhenDone: true);
   }
 
   Future<void> _loadOrders() async {
@@ -826,24 +795,13 @@ class _EmployeePageState extends State<EmployeePage> {
                                             0.66, // a bit taller for bottom actions
                                       ),
                                   itemCount: _apiOrders.length,
-                                  itemBuilder: (context, i) =>
-                                      EmployeeOrderCard(
-                                        order: _apiOrders[i],
-                                        onTap: () =>
-                                            _openOrderDetail(_apiOrders[i]),
-                                        onAccept: () {
-                                          final o = _apiOrders[i];
-                                          if (o.status == 'PROCESSING') {
-                                            _readyOrder(o.orderId);
-                                          } else if (o.status == 'READY') {
-                                            _completeOrder(o.orderId);
-                                          } else {
-                                            _acceptOrder(o.orderId);
-                                          }
-                                        },
-                                        onCancel: () =>
-                                            _cancelOrder(_apiOrders[i].orderId),
-                                      ),
+                                  itemBuilder: (context, i) => EmployeeOrderCard(
+                                    order: _apiOrders[i],
+                                    isUpdating: _updatingStatus[_apiOrders[i].orderId] == true,
+                                    onTap: () => _openOrderDetail(_apiOrders[i]),
+                                    onAccept: () => _advanceOrder(_apiOrders[i]),
+                                    onCancel: () => _cancelOrder(_apiOrders[i]),
+                                  ),
                                 ),
                               ),
                             ),

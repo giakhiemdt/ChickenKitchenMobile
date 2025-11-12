@@ -381,22 +381,38 @@ class _BuildDishWizardPageState extends State<BuildDishWizardPage> {
         setState(() => _submitting = false);
         return;
       }
-      final uri = widget.editingDishId == null
+      // Build endpoint and payload per mode (create vs update)
+      final bool isCreate = widget.editingDishId == null;
+      final Uri uri = isCreate
           ? Uri.parse(
               'https://chickenkitchen.milize-lena.space/api/orders/current/dishes/custom',
             )
           : Uri.parse(
-              'https://chickenkitchen.milize-lena.space/api/orders/dishes/${widget.editingDishId}',
+              'https://chickenkitchen.milize-lena.space/api/orders/dishes/${widget.editingDishId}?storeId=$storeId',
             );
-      final payload = {
-        'storeId': storeId,
+      // For update (editing), server expects body with note + selections only (storeId moved to query)
+      final Map<String, dynamic> payload = {
         'note': _noteController.text.trim(),
         'selections': selections,
-        if (widget.editingDishId == null) 'isCustom': true,
+        if (isCreate) 'storeId': storeId,
+        if (isCreate) 'isCustom': true,
       };
-      final resp = widget.editingDishId == null
-          ? await http.post(uri, headers: headers, body: jsonEncode(payload))
-          : await http.put(uri, headers: headers, body: jsonEncode(payload));
+      final commonHeaders = {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      final resp = isCreate
+          ? await http.post(
+              uri,
+              headers: commonHeaders,
+              body: jsonEncode(payload),
+            )
+          : await http.put(
+              uri,
+              headers: commonHeaders,
+              body: jsonEncode(payload),
+            );
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

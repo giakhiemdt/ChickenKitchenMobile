@@ -4,12 +4,14 @@ import 'package:mobiletest/features/employee/presentation/widgets/time_display.d
 
 class EmployeeOrderCard extends StatelessWidget {
   final EmployeeOrderSummary order;
+  final bool isUpdating;
   final VoidCallback? onAccept;
   final VoidCallback? onCancel;
   final VoidCallback? onTap;
   const EmployeeOrderCard({
     super.key,
     required this.order,
+    this.isUpdating = false,
     this.onAccept,
     this.onCancel,
     this.onTap,
@@ -341,7 +343,10 @@ class EmployeeOrderCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: onCancel ?? () {
+                    onPressed: isUpdating
+                        ? null
+                        : onCancel ??
+                              () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Cancelled order')),
                       );
@@ -350,13 +355,31 @@ class EmployeeOrderCard extends StatelessWidget {
                       foregroundColor: Colors.red.shade700,
                       side: BorderSide(color: Colors.red.shade300),
                     ),
-                    child: const Text('Cancel'),
+                    child: isUpdating
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Đang xử lý...'),
+                            ],
+                          )
+                        : const Text('Cancel'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: onAccept ?? () {
+                    onPressed: isUpdating
+                        ? null
+                        : onAccept ??
+                              () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Accepted order')),
                       );
@@ -366,11 +389,22 @@ class EmployeeOrderCard extends StatelessWidget {
                       backgroundColor: const Color(0xFFB71C1C),
                       foregroundColor: Colors.white,
                     ),
-                    child: Text(
-                      order.status.toUpperCase() == 'PROCESSING'
-                          ? 'Ready'
-                          : (order.status.toUpperCase() == 'READY' ? 'Complete' : 'Accept'),
-                    ),
+                    child: isUpdating
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            order.status.toUpperCase() == 'PROCESSING'
+                                ? 'Ready'
+                                : (order.status.toUpperCase() == 'READY'
+                                      ? 'Complete'
+                                      : 'Accept'),
+                          ),
                   ),
                 ),
               ],

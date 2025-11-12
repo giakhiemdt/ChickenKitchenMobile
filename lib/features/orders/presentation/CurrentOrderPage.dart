@@ -24,6 +24,11 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
   final Set<int> _selected = <int>{};
   bool _deleting = false;
   StreamSubscription<void>? _cartSub;
+  // Track per-dish quantity update in-flight status
+  final Map<int, bool> _qtyUpdating = <int, bool>{};
+  // Pending quantity edits (accumulate locally; PUT on confirm)
+  final Map<int, int> _pendingQty = <int, int>{};
+  bool _savingQty = false;
 
   @override
   void initState() {
@@ -94,6 +99,144 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Lỗi khi xoá: $e')));
       return false;
+    }
+  }
+
+  Future<bool> _updateDishQuantity(int dishId, int quantity) async {
+    try {
+      final headers = await AuthService().authHeaders();
+      if (!(headers['Authorization']?.startsWith('Bearer ') ?? false)) {
+        if (!mounted) return false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bạn cần đăng nhập để cập nhật số lượng.'),
+          ),
+        );
+        return false;
+      }
+      final storeId = await StoreService.getSelectedStoreId() ?? 1;
+      final uri = Uri.parse(
+        'https://chickenkitchen.milize-lena.space/api/orders/dishes/$dishId/quantity?storeId=$storeId',
+      );
+      setState(() => _qtyUpdating[dishId] = true);
+      final resp = await http.put(
+        uri,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'quantity': quantity}),
+      );
+      if (await HttpGuard.handleUnauthorized(context, resp)) {
+        if (mounted) setState(() => _qtyUpdating[dishId] = false);
+        return false;
+      }
+      final ok = resp.statusCode >= 200 && resp.statusCode < 300;
+      if (!mounted) return ok;
+      setState(() => _qtyUpdating[dishId] = false);
+      if (ok) {
+        await _refresh();
+        return true;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cập nhật thất bại: HTTP ${resp.statusCode}')),
+        );
+        return false;
+      }
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() => _qtyUpdating[dishId] = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi cập nhật: $e')));
+      return false;
+    }
+  }
+
+  // Display quantity prefers pending edits over server quantity
+  int _displayQtyFor(int dishId, int serverQty) =>
+      _pendingQty[dishId] ?? serverQty;
+
+  // Commit all pending quantity changes with PUT per dish
+  Future<void> _commitPendingQuantities(Map<int, int> serverQtyMap) async {
+    if (_savingQty) return;
+    // Check if there is anything to save
+    bool hasChanges = false;
+    _pendingQty.forEach((id, target) {
+      final current = serverQtyMap[id] ?? 0;
+      if (target != current) hasChanges = true;
+    });
+    if (!hasChanges) return;
+
+    setState(() => _savingQty = true);
+    try {
+      final headers = await AuthService().authHeaders();
+      if (!(headers['Authorization']?.startsWith('Bearer ') ?? false)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bạn cần đăng nhập để cập nhật.')),
+        );
+        setState(() => _savingQty = false);
+        return;
+      }
+      final storeId = await StoreService.getSelectedStoreId() ?? 1;
+      for (final entry in _pendingQty.entries.toList()) {
+        final id = entry.key;
+        final target = entry.value;
+        final current = serverQtyMap[id] ?? 0;
+        if (target == current) continue;
+        setState(() => _qtyUpdating[id] = true);
+        final uri = Uri.parse(
+          'https://chickenkitchen.milize-lena.space/api/orders/dishes/$id/quantity?storeId=$storeId',
+        );
+        final resp = await http.put(
+          uri,
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'quantity': target}),
+        );
+        if (await HttpGuard.handleUnauthorized(context, resp)) {
+          setState(() {
+            _qtyUpdating[id] = false;
+            _savingQty = false;
+          });
+          return;
+        }
+        if (resp.statusCode < 200 || resp.statusCode >= 300) {
+          if (!mounted) return;
+          setState(() {
+            _qtyUpdating[id] = false;
+            _savingQty = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cập nhật thất bại #$id: HTTP ${resp.statusCode}'),
+            ),
+          );
+          return;
+        }
+        setState(() => _qtyUpdating[id] = false);
+      }
+      await _refresh();
+      // Clear committed entries
+      setState(() {
+        _pendingQty.clear();
+        _savingQty = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã cập nhật số lượng.')));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _savingQty = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi cập nhật: $e')));
     }
   }
 
@@ -291,6 +434,14 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
               },
             );
           }
+          // Build a map for quick server quantity lookup
+          final Map<int, int> serverQtyMap = {
+            for (final d in dishes)
+              (d['dishId'] as int): ((d['quantity'] ?? 0) as int),
+          };
+          final bool hasPending = _pendingQty.entries.any(
+            (e) => (serverQtyMap[e.key] ?? 0) != e.value,
+          );
           return Stack(
             children: [
               ListView.separated(
@@ -301,6 +452,10 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                   final d = dishes[i];
                   final dishId = (d['dishId'] ?? i) as int;
                   final expanded = _expanded[dishId] ?? false;
+                  final dishQty =
+                      (d['quantity'] ?? 1) as int; // server quantity
+                  final shownQty = _displayQtyFor(dishId, dishQty);
+                  final updating = _qtyUpdating[dishId] == true;
                   final steps =
                       (d['steps'] as List<dynamic>?)
                           ?.cast<Map<String, dynamic>>() ??
@@ -462,6 +617,103 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                                                 ),
                                               ),
                                             ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                  color: Colors.black12,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                color: Colors.white,
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  IconButton(
+                                                    iconSize: 20,
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 32,
+                                                          minHeight: 32,
+                                                        ),
+                                                    padding: EdgeInsets.zero,
+                                                    onPressed:
+                                                        (updating || _savingQty)
+                                                        ? null
+                                                        : () {
+                                                            final next =
+                                                                shownQty - 1;
+                                                            setState(() {
+                                                              _pendingQty[dishId] =
+                                                                  next < 0
+                                                                  ? 0
+                                                                  : next;
+                                                            });
+                                                          },
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .remove_circle_outline,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 6,
+                                                        ),
+                                                    child: updating
+                                                        ? const SizedBox(
+                                                            width: 16,
+                                                            height: 16,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                ),
+                                                          )
+                                                        : Text(
+                                                            '$shownQty',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                ),
+                                                          ),
+                                                  ),
+                                                  IconButton(
+                                                    iconSize: 20,
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 32,
+                                                          minHeight: 32,
+                                                        ),
+                                                    padding: EdgeInsets.zero,
+                                                    onPressed:
+                                                        (updating || _savingQty)
+                                                        ? null
+                                                        : () {
+                                                            final next =
+                                                                shownQty + 1;
+                                                            setState(() {
+                                                              _pendingQty[dishId] =
+                                                                  next;
+                                                            });
+                                                          },
+                                                    icon: const Icon(
+                                                      Icons.add_circle_outline,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ],
                                         ),
                                         const SizedBox(height: 6),
@@ -565,81 +817,141 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                   );
                 },
               ),
-              // Order now bar
+              // Bottom bars: pending confirmation (if any) and order actions
               SafeArea(
                 top: false,
                 child: Align(
                   alignment: Alignment.bottomCenter,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 10,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    child: _editMode
-                        ? ElevatedButton(
-                            onPressed: _selected.isEmpty || _deleting
-                                ? null
-                                : () async {
-                                    setState(() => _deleting = true);
-                                    try {
-                                      bool allOk = true;
-                                      for (final id in _selected.toList()) {
-                                        final ok = await _deleteDish(id);
-                                        allOk = allOk && ok;
-                                      }
-                                      await _refresh();
-                                      _selected.clear();
-                                      if (!mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            allOk
-                                                ? 'Đã xoá món đã chọn'
-                                                : 'Một số món xoá thất bại',
-                                          ),
-                                        ),
-                                      );
-                                    } finally {
-                                      if (mounted) setState(() => _deleting = false);
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.redAccent,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(26),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasPending)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 10,
+                                offset: const Offset(0, -2),
                               ),
-                            ),
-                            child: Text(_deleting ? 'Deleting...' : 'Delete'),
-                          )
-                        : ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const ConfirmOrderPage(),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(26),
-                              ),
-                            ),
-                            child: const Text('Continue'),
+                            ],
                           ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.edit,
+                                size: 16,
+                                color: Colors.black54,
+                              ),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'Bạn có thay đổi số lượng chưa lưu',
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: _savingQty
+                                    ? null
+                                    : () => _commitPendingQuantities(
+                                        serverQtyMap,
+                                      ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primary,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: _savingQty
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.check, size: 16),
+                                label: const Text('Xác nhận'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 10,
+                              offset: const Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                        child: _editMode
+                            ? ElevatedButton(
+                                onPressed: _selected.isEmpty || _deleting
+                                    ? null
+                                    : () async {
+                                        setState(() => _deleting = true);
+                                        try {
+                                          bool allOk = true;
+                                          for (final id in _selected.toList()) {
+                                            final ok = await _deleteDish(id);
+                                            allOk = allOk && ok;
+                                          }
+                                          await _refresh();
+                                          _selected.clear();
+                                          if (!mounted) return;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                allOk
+                                                    ? 'Đã xoá món đã chọn'
+                                                    : 'Một số món xoá thất bại',
+                                              ),
+                                            ),
+                                          );
+                                        } finally {
+                                          if (mounted)
+                                            setState(() => _deleting = false);
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(26),
+                                  ),
+                                ),
+                                child: Text(
+                                  _deleting ? 'Deleting...' : 'Delete',
+                                ),
+                              )
+                            : ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const ConfirmOrderPage(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primary,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(26),
+                                  ),
+                                ),
+                                child: const Text('Continue'),
+                              ),
+                      ),
+                    ],
                   ),
                 ),
               ),

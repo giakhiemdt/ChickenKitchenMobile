@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobiletest/features/auth/data/auth_service.dart';
 import 'package:mobiletest/core/services/http_guard.dart';
-import 'package:mobiletest/features/store/data/store_service.dart';
-import 'package:mobiletest/features/orders/data/cart_events.dart';
 import 'package:mobiletest/features/menu/presentation/DishDetailPage.dart';
 
 // Model for new dishes API
@@ -52,8 +50,7 @@ class _TodaysSpecialsState extends State<TodaysSpecials> {
   int _page = 1;
   static const int _size = 50; // fixed per requirements
   String? _error;
-  final Map<int, int> _addedQty = <int, int>{};
-  int? _expandedQtyId; // dish id whose qty badge is expanded
+  // No local add/quantity logic here; ordering is handled in DishDetailPage
 
   static const String _fallbackImage =
       'https://images.unsplash.com/photo-1543353071-10c8ba85a904?auto=format&fit=crop&q=80&w=1200';
@@ -115,57 +112,7 @@ class _TodaysSpecialsState extends State<TodaysSpecials> {
     }
   }
 
-  Future<void> _addExistingDish(DishItem it) async {
-    await _changeExistingDishQty(it, 1);
-  }
-
-  Future<void> _changeExistingDishQty(DishItem it, int delta) async {
-    try {
-      final headers = await AuthService().authHeaders();
-      if (!(headers['Authorization']?.startsWith('Bearer ') ?? false)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bạn cần đăng nhập để thêm món.')),
-        );
-        return;
-      }
-      final storeId = await StoreService.getSelectedStoreId() ?? 1;
-      final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/current/dishes/existing',
-      );
-      final body = jsonEncode({
-        'storeId': storeId,
-        'dishId': it.id,
-        'quantity': delta,
-      });
-      final resp = await http.post(uri, headers: headers, body: body);
-      if (await HttpGuard.handleUnauthorized(context, resp)) return;
-      if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cập nhật thất bại: HTTP ${resp.statusCode}')),
-        );
-        return;
-      }
-      setState(() {
-        final now = (_addedQty[it.id] ?? 0) + delta;
-        _addedQty[it.id] = now < 0 ? 0 : now;
-        if (_addedQty[it.id] == 0 && _expandedQtyId == it.id) {
-          _expandedQtyId = null;
-        }
-      });
-      CartEvents.notifyChanged();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã cập nhật ${it.name.isNotEmpty ? it.name : 'Dish #${it.id}'}')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
-      );
-    }
-  }
+  // No +/- here; use DishDetailPage for ordering and quantity changes
 
   @override
   Widget build(BuildContext context) {
@@ -259,94 +206,7 @@ class _TodaysSpecialsState extends State<TodaysSpecials> {
                                 },
                               ),
                             ),
-                            Positioned(
-                              right: 6,
-                              bottom: 6,
-                              child: (_addedQty[it.id] ?? 0) > 0
-                                  ? GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _expandedQtyId =
-                                              _expandedQtyId == it.id ? null : it.id;
-                                        });
-                                      },
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 180),
-                                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                                        height: 28,
-                                        constraints: BoxConstraints(
-                                          minWidth: _expandedQtyId == it.id ? 96 : 24,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: primary, width: 2),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(.08),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: _expandedQtyId == it.id
-                                            ? Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  InkWell(
-                                                    onTap: () => _changeExistingDishQty(it, -1),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 6.0),
-                                                      child: Icon(Icons.remove, size: 16, color: Colors.black87),
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '${_addedQty[it.id] ?? 0}',
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w800,
-                                                    ),
-                                                  ),
-                                                  InkWell(
-                                                    onTap: () => _changeExistingDishQty(it, 1),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 6.0),
-                                                      child: Icon(Icons.add, size: 16, color: Colors.black87),
-                                                    ),
-                                                  ),
-                                                ],
-                                              )
-                                            : Center(
-                                                child: Text(
-                                                  '${_addedQty[it.id] ?? 0}',
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                                ),
-                                              ),
-                                      ),
-                                    )
-                                  : InkWell(
-                                      onTap: () => _addExistingDish(it),
-                                      child: Container(
-                                        width: 28,
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                          color: primary,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(.1),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: const Icon(Icons.add, size: 16, color: Colors.white),
-                                      ),
-                                    ),
-                            ),
+                            // Removed inline add/quantity controls; open details to order
                           ],
                         ),
                       ),
@@ -427,6 +287,7 @@ class _TodaysSpecialsState extends State<TodaysSpecials> {
                 ],
               ),
             ),
+          // No confirm bar here; ordering happens in details
         ],
       ),
     );
