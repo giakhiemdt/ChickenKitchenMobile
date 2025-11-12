@@ -601,7 +601,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
         return;
       }
       final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/api/orders/cancel',
+        'https://chickenkitchen.milize-lena.space/api/orders/cancel',
       );
       final body = jsonEncode(<String, dynamic>{
         'orderId': orderId,

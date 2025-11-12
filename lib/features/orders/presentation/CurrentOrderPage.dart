@@ -72,8 +72,10 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
         );
         return false;
       }
+      // Use new API: /api/orders/current/dishes/existing/{dishId}?storeId={storeId}
+      final storeId = await StoreService.getSelectedStoreId() ?? 1;
       final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/dishes/$dishId',
+        'https://chickenkitchen.milize-lena.space/api/orders/current/dishes/existing/$dishId?storeId=$storeId',
       );
       final resp = await http.delete(uri, headers: headers);
       if (await HttpGuard.handleUnauthorized(context, resp)) return false;
