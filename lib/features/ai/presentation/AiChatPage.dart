@@ -273,7 +273,7 @@ class _AiChatPageState extends State<AiChatPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trợ lý AI'),
+        title: const Text('Chicken Kitchen Gang'),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
@@ -431,12 +431,18 @@ class _Composer extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            onPressed: onSend,
-            icon: const Icon(Icons.send),
-            color: const Color(0xFFB71C1C),
-            splashRadius: 22,
-          )
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFB71C1C),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: onSend,
+              icon: const Icon(Icons.send),
+              color: Colors.white,
+              splashRadius: 22,
+            ),
+          ),
         ],
       ),
     );
@@ -450,15 +456,29 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = role == 'user';
-    return CircleAvatar(
-      radius: 14,
-      backgroundColor: isUser ? const Color(0xFFB71C1C) : Colors.green.shade600,
-      child: Icon(
-        isUser ? Icons.person : Icons.psychology_alt,
-        size: 16,
-        color: Colors.white,
-      ),
-    );
+    if (isUser) {
+      return CircleAvatar(
+        radius: 16,
+        backgroundColor: const Color(0xFFB71C1C),
+        child: const Icon(Icons.person, size: 18, color: Colors.white),
+      );
+    } else {
+      // AI uses app logo
+      return CircleAvatar(
+        radius: 16,
+        backgroundColor: Colors.white,
+        child: ClipOval(
+          child: Image.asset(
+            'assets/images/Logo.png',
+            width: 32,
+            height: 32,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.psychology_alt, size: 18, color: Colors.green),
+          ),
+        ),
+      );
+    }
   }
 }
 

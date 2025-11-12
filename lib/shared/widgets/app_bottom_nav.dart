@@ -46,31 +46,78 @@ class AppBottomNav extends StatelessWidget {
   }
 }
 
-class _AiIcon extends StatelessWidget {
+class _AiIcon extends StatefulWidget {
   final bool active;
   final Color primary;
   const _AiIcon({required this.active, required this.primary});
 
   @override
+  State<_AiIcon> createState() => _AiIconState();
+}
+
+class _AiIconState extends State<_AiIcon> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(
+      begin: -2.0,
+      end: 2.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        border: Border.all(color: primary, width: active ? 2 : 1),
-        boxShadow: active
-            ? [
-                BoxShadow(
-                  color: primary.withOpacity(.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
-      ),
-      child: Icon(Icons.psychology_alt, color: primary),
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, _animation.value),
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: widget.primary.withOpacity(0.3),
+                width: widget.active ? 2 : 1,
+              ),
+              boxShadow: widget.active
+                  ? [
+                      BoxShadow(
+                        color: widget.primary.withOpacity(.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/Logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Icon(Icons.psychology_alt, color: widget.primary),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
