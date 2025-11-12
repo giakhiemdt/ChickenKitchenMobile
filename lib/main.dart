@@ -34,9 +34,13 @@ Future<void> main() async {
   final messaging = FirebaseMessaging.instance;
   await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-  // In token ra console
-  final token = await messaging.getToken();
-  print('FCM TOKEN: $token');
+  // In token ra console (wrapped in try-catch to prevent crashes)
+  try {
+    final token = await messaging.getToken();
+    print('FCM TOKEN: $token');
+  } catch (e) {
+    print('FCM TOKEN ERROR: $e (Firebase messaging không khả dụng)');
+  }
 
   runApp(const MyApp());
 }
@@ -118,7 +122,7 @@ class _StartUpRouterState extends State<_StartUpRouter> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String>(
+    return FutureBuilder<String>( 
       future: _decideStartUpScreen(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {

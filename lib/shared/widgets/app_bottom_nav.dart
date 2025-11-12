@@ -28,7 +28,7 @@ class AppBottomNav extends StatelessWidget {
         ),
         BottomNavigationBarItem(
           icon: _AiIcon(active: false, primary: primary),
-          activeIcon: const _AiIcon(active: true, primary: primary),
+          activeIcon: _AiIcon(active: true, primary: primary),
           label: 'AI',
         ),
         const BottomNavigationBarItem(
