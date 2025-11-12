@@ -4,6 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:mobiletest/features/menu/presentation/DishDetailPage.dart';
 import 'package:mobiletest/features/auth/data/auth_service.dart';
 import 'package:mobiletest/core/services/http_guard.dart';
+import 'package:mobiletest/shared/widgets/app_bottom_nav.dart';
+import 'package:mobiletest/features/home/presentation/HomePage.dart';
+import 'package:mobiletest/features/ai/presentation/AiChatPage.dart';
+import 'package:mobiletest/features/profile/presentation/ProfilePage.dart';
+import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -468,6 +473,40 @@ class _SearchPageState extends State<SearchPage> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 1,
+        onTap: (i) {
+          switch (i) {
+            case 0:
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const HomePage()),
+                (route) => false,
+              );
+              break;
+            case 1:
+              break; // already here
+            case 2:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiChatPage()),
+              );
+              break;
+            case 3:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OrderHistoryPage()),
+              );
+              break;
+            case 4:
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ProfilePage()),
+              );
+              break;
+            default:
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Tab này sẽ sớm có.')),
+              );
+          }
+        },
       ),
     );
   }

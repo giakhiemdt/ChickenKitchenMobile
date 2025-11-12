@@ -27,9 +27,9 @@ class AppBottomNav extends StatelessWidget {
           label: 'Search',
         ),
         BottomNavigationBarItem(
-          icon: _OrderIcon(active: false, primary: primary),
-          activeIcon: const _OrderIcon(active: true, primary: primary),
-          label: 'Order',
+          icon: _AiIcon(active: false, primary: primary),
+          activeIcon: const _AiIcon(active: true, primary: primary),
+          label: 'AI',
         ),
         const BottomNavigationBarItem(
           icon: Icon(Icons.history_outlined),
@@ -46,10 +46,10 @@ class AppBottomNav extends StatelessWidget {
   }
 }
 
-class _OrderIcon extends StatelessWidget {
+class _AiIcon extends StatelessWidget {
   final bool active;
   final Color primary;
-  const _OrderIcon({required this.active, required this.primary});
+  const _AiIcon({required this.active, required this.primary});
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +70,7 @@ class _OrderIcon extends StatelessWidget {
               ]
             : null,
       ),
-      child: Icon(Icons.shopping_bag, color: primary),
+      child: Icon(Icons.psychology_alt, color: primary),
     );
   }
 }

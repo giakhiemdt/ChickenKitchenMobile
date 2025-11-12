@@ -9,6 +9,7 @@ import 'package:mobiletest/features/profile/presentation/ProfilePage.dart';
 import 'package:mobiletest/features/orders/presentation/CurrentOrderPage.dart';
 import 'package:mobiletest/features/menu/presentation/DailyMenuListPage.dart';
 import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
+import 'package:mobiletest/features/ai/presentation/AiChatPage.dart';
 
 class Store {
   final int id;
@@ -193,7 +194,7 @@ class _RestaurantsListPageState extends State<RestaurantsListPage> {
         ],
       ),
       bottomNavigationBar: AppBottomNav(
-        currentIndex: 2,
+        currentIndex: 0,
         onTap: (i) {
           switch (i) {
             case 0:
@@ -208,7 +209,10 @@ class _RestaurantsListPageState extends State<RestaurantsListPage> {
               );
               break;
             case 2:
-              break; // already here
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiChatPage()),
+              );
+              break;
             case 3:
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const OrderHistoryPage()),

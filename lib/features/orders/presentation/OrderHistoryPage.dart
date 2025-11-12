@@ -7,6 +7,7 @@ import 'package:mobiletest/shared/widgets/app_bottom_nav.dart';
 import 'package:mobiletest/features/home/presentation/HomePage.dart';
 import 'package:mobiletest/features/restaurants/presentation/RestaurantsListPage.dart';
 import 'package:mobiletest/features/profile/presentation/ProfilePage.dart';
+import 'package:mobiletest/features/ai/presentation/AiChatPage.dart';
 import 'package:mobiletest/features/auth/data/auth_service.dart';
 import 'package:mobiletest/features/store/data/store_service.dart';
 
@@ -865,7 +866,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
               break;
             case 2:
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RestaurantsListPage()),
+                MaterialPageRoute(builder: (_) => const AiChatPage()),
               );
               break;
             case 3:

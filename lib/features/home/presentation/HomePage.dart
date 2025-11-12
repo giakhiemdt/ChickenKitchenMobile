@@ -8,6 +8,7 @@ import 'package:mobiletest/features/home/presentation/widgets/todays_specials.da
 import 'package:mobiletest/features/home/presentation/widgets/promotions_strip.dart';
 import 'package:mobiletest/features/profile/presentation/ProfilePage.dart';
 import 'package:mobiletest/features/restaurants/presentation/RestaurantsListPage.dart';
+import 'package:mobiletest/features/ai/presentation/AiChatPage.dart';
 // import 'package:mobiletest/features/menu/presentation/DailyMenuListPage.dart';
 import 'package:mobiletest/features/search/presentation/SearchPage.dart';
 import 'package:mobiletest/shared/widgets/dual_fabs.dart';
@@ -194,7 +195,7 @@ class HomePage extends StatelessWidget {
               break;
             case 2:
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RestaurantsListPage()),
+                MaterialPageRoute(builder: (_) => const AiChatPage()),
               );
               break;
             case 3:

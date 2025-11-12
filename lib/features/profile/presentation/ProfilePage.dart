@@ -8,6 +8,7 @@ import 'package:mobiletest/features/home/presentation/HomePage.dart';
 import 'package:mobiletest/features/restaurants/presentation/RestaurantsListPage.dart';
 import 'package:mobiletest/features/menu/presentation/DailyMenuListPage.dart';
 import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
+import 'package:mobiletest/features/ai/presentation/AiChatPage.dart';
 
 class ProfileData {
   final String fullName;
@@ -281,7 +282,7 @@ class _ProfilePageState extends State<ProfilePage> {
               break;
             case 2:
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RestaurantsListPage()),
+                MaterialPageRoute(builder: (_) => const AiChatPage()),
               );
               break;
             case 3:

@@ -12,6 +12,7 @@ import 'package:mobiletest/shared/widgets/dual_fabs.dart';
 import 'package:mobiletest/features/menu/presentation/BuildDishWizardPage.dart';
 import 'package:mobiletest/features/orders/presentation/CurrentOrderPage.dart';
 import 'package:mobiletest/features/orders/presentation/OrderHistoryPage.dart';
+import 'package:mobiletest/features/ai/presentation/AiChatPage.dart';
 
 class SpecialItem {
   final int id;
@@ -383,7 +384,7 @@ class _DailyMenuListPageState extends State<DailyMenuListPage> {
               break; // already on search
             case 2:
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const RestaurantsListPage()),
+                MaterialPageRoute(builder: (_) => const AiChatPage()),
               );
               break;
             case 3:
