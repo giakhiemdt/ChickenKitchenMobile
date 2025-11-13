@@ -16,7 +16,7 @@ import 'package:mobiletest/shared/widgets/in_app_notification.dart';
 /// Global navigator key để show dialog từ FCM
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-/// Background handler
+/// Background handler — bắt buộc có để FCM hoạt động khi app bị kill
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -25,26 +25,57 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
+/// ===================== MAIN =====================
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 1️⃣ Khởi tạo Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // FCM setup
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(alert: true, badge: true, sound: true);
+  // 2️⃣ Delay nhỏ cho Samsung / Android 13+ (tránh lỗi FCM chưa sẵn sàng)
+  await Future.delayed(const Duration(seconds: 2));
 
-  // In token ra console (wrapped in try-catch to prevent crashes)
-  try {
-    final token = await messaging.getToken();
-    print('FCM TOKEN: $token');
-  } catch (e) {
-    print('FCM TOKEN ERROR: $e (Firebase messaging không khả dụng)');
+  // 3️⃣ Đăng ký background message handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  final messaging = FirebaseMessaging.instance;
+
+  // 4️⃣ Xin quyền thông báo
+  final settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  print('🔔 Notification permission: ${settings.authorizationStatus}');
+
+  // 5️⃣ Lấy token, thử lại tối đa 3 lần nếu bị lỗi
+  String? token;
+  int attempts = 0;
+  while (token == null && attempts < 3) {
+    try {
+      token = await messaging.getToken();
+      if (token != null) {
+        print('🔥 FCM TOKEN: $token');
+      } else {
+        print('⚠️ Token null, thử lại...');
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    } catch (e) {
+      print('❌ Lấy FCM token lỗi: $e (Firebase messaging không khả dụng)');
+      await Future.delayed(const Duration(seconds: 2));
+    }
+    attempts++;
   }
+
+  // 6️⃣ Theo dõi nếu token được làm mới
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+    print('♻️ FCM token refreshed: $newToken');
+  });
 
   runApp(const MyApp());
 }
 
+/// ===================== APP WIDGET =====================
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -58,7 +89,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: false,
         primaryColor: const Color(0xFF86C144),
         scaffoldBackgroundColor: Colors.white,
-        // make progress indicators (Circular/Linear) use red by default
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: Colors.red,
         ),
@@ -74,7 +104,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// ===================== Start-Up Router =====================
+/// ===================== ROUTER =====================
 class _StartUpRouter extends StatefulWidget {
   const _StartUpRouter();
 
@@ -91,6 +121,7 @@ class _StartUpRouterState extends State<_StartUpRouter> {
     _initMessagingListeners();
   }
 
+  /// Lắng nghe sự kiện FCM (foreground, background, click notification)
   void _initMessagingListeners() {
     // Foreground
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -112,7 +143,7 @@ class _StartUpRouterState extends State<_StartUpRouter> {
       print('[CLICK] User mở app từ notification: ${message.data}');
     });
 
-    // Khi app mở từ terminated
+    // Khi app mở từ trạng thái bị kill
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null) {
         print('[INIT] App mở từ notification bị kill: ${message.data}');
@@ -120,9 +151,10 @@ class _StartUpRouterState extends State<_StartUpRouter> {
     });
   }
 
+  /// Router chọn màn hình khởi động
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String>( 
+    return FutureBuilder<String>(
       future: _decideStartUpScreen(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -145,12 +177,12 @@ class _StartUpRouterState extends State<_StartUpRouter> {
     );
   }
 
-  /// Quyết định màn hình start-up
+  /// Quyết định màn hình start-up theo token và role
   Future<String> _decideStartUpScreen() async {
     final tokens = await _auth.loadTokens();
     if (tokens == null) return 'splash';
 
-    // Role-based redirect using accessToken claims
+    // Role-based redirect
     try {
       final claims = _auth.decodeAccessTokenClaims(tokens.accessToken);
       final role = (claims?['role'] as String?)?.toUpperCase();
@@ -167,7 +199,7 @@ class _StartUpRouterState extends State<_StartUpRouter> {
     return 'home';
   }
 
-  /// Preload các asset và API để giảm jank
+  /// Preload assets và API để giảm giật lag
   Future<void> _preloadHome() async {
     const bannerUrl =
         'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1200';
@@ -189,6 +221,7 @@ class _StartUpRouterState extends State<_StartUpRouter> {
     final date =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     final storeId = await StoreService.getSelectedStoreId() ?? 1;
+
     futures.add(http.get(
             Uri.parse(
               'https://chickenkitchen.milize-lena.space/api/daily-menu/store/$storeId?date=$date',

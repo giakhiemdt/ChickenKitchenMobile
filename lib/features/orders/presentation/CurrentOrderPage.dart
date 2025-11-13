@@ -67,7 +67,7 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
     });
   }
 
-  Future<bool> _deleteDish(int dishId) async {
+  Future<bool> _deleteDish(int dishId, {required bool isCustom}) async {
     try {
       final headers = await AuthService().authHeaders();
       if (!(headers['Authorization']?.startsWith('Bearer ') ?? false)) {
@@ -77,11 +77,22 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
         );
         return false;
       }
-      // Use new API: /api/orders/current/dishes/existing/{dishId}?storeId={storeId}
-      final storeId = await StoreService.getSelectedStoreId() ?? 1;
-      final uri = Uri.parse(
-        'https://chickenkitchen.milize-lena.space/api/orders/current/dishes/existing/$dishId?storeId=$storeId',
-      );
+      // Endpoint selection:
+      // - Non-custom dish (isCustom == false):
+      //   DELETE /api/orders/current/dishes/existing/{dishId}?storeId={storeId}
+      // - Custom dish (isCustom == true):
+      //   DELETE /api/orders/dishes/{dishId}
+      Uri uri;
+      if (isCustom) {
+        uri = Uri.parse(
+          'https://chickenkitchen.milize-lena.space/api/orders/dishes/$dishId',
+        );
+      } else {
+        final storeId = await StoreService.getSelectedStoreId() ?? 1;
+        uri = Uri.parse(
+          'https://chickenkitchen.milize-lena.space/api/orders/current/dishes/existing/$dishId?storeId=$storeId',
+        );
+      }
       final resp = await http.delete(uri, headers: headers);
       if (await HttpGuard.handleUnauthorized(context, resp)) return false;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
@@ -442,6 +453,11 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
           final bool hasPending = _pendingQty.entries.any(
             (e) => (serverQtyMap[e.key] ?? 0) != e.value,
           );
+          // Build a map for (dishId -> isCustom) for bulk delete usage
+          final Map<int, bool> isCustomMap = {
+            for (final d in dishes)
+              (d['dishId'] as int): ((d['isCustom'] as bool?) ?? false),
+          };
           return Stack(
             children: [
               ListView.separated(
@@ -488,7 +504,8 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                     ),
                     confirmDismiss: (dir) async {
                       if (dir != DismissDirection.endToStart) return false;
-                      final ok = await _deleteDish(dishId);
+                      final bool isCustom = (d['isCustom'] as bool?) ?? false;
+                      final ok = await _deleteDish(dishId, isCustom: isCustom);
                       if (ok) await _refresh();
                       return ok;
                     },
@@ -898,7 +915,10 @@ class _CurrentOrderPageState extends State<CurrentOrderPage> {
                                         try {
                                           bool allOk = true;
                                           for (final id in _selected.toList()) {
-                                            final ok = await _deleteDish(id);
+                                            final ok = await _deleteDish(
+                                              id,
+                                              isCustom: isCustomMap[id] ?? false,
+                                            );
                                             allOk = allOk && ok;
                                           }
                                           await _refresh();
